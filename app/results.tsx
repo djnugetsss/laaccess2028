@@ -1,8 +1,16 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowRight, Info } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  AccessibilityInfo,
+  ScrollView,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -12,6 +20,7 @@ import {
   RouteCard,
   RouteMap,
   Text,
+  TextLink,
 } from '@/components';
 import { SHORT_DISCLAIMER } from '@/lib/constants';
 import { DESTINATION, MOCK_ROUTES, ORIGIN } from '@/lib/mockRoutes';
@@ -19,10 +28,10 @@ import { PREFERENCE_BY_KEY, ROUTE_PREFERENCE_KEYS } from '@/lib/preferences';
 import { rankRoutes } from '@/lib/scoreEngine';
 import { DEMO_TRIP, useTrip } from '@/lib/trip';
 import type { PreferenceKey } from '@/lib/types';
-import { colors, radii, screenPadding, shadows, spacing } from '@/theme';
+import { colors, layout, layoutSpring, radii, screenPadding, shadows, spacing } from '@/theme';
 
-/** Shared spring for the live reorder — soft, slightly underdamped, no bounce-back jitter. */
-const REORDER = LinearTransition.springify().damping(19).stiffness(150).mass(0.9);
+/** Live reorder spring. Shared with the card expand animation so both move as one. */
+const REORDER = layoutSpring;
 
 const MAP_FRACTION = 0.5;
 const SHEET_OVERLAP = 28;
@@ -38,6 +47,13 @@ export default function Results() {
   // Follow the recommended route until the user explicitly picks one.
   const [pickedId, setPickedId] = useState<string | null>(null);
   const selectedId = pickedId ?? top.route.id;
+
+  // At most one card open at a time; all collapsed on load so scores compare at a glance.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const onCardPress = (id: string) => {
+    setPickedId(id);
+    setExpandedId((open) => (open === id ? null : id));
+  };
 
   const listRef = useRef<ScrollView>(null);
   const prevTop = useRef(top.route.id);
@@ -95,7 +111,7 @@ export default function Results() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: spacing.sm,
-              paddingHorizontal: spacing.md + 2,
+              paddingHorizontal: spacing.lg,
               borderRadius: radii.full,
               backgroundColor: 'rgba(255,255,255,0.96)',
             },
@@ -133,41 +149,40 @@ export default function Results() {
           <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: colors.border.strong }} />
         </View>
 
-        <View style={{ paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: 2 }}>
-          <Text variant="heading" accessibilityRole="header">
+        {/* quiet header */}
+        <View style={{ paddingHorizontal: screenPadding, paddingTop: spacing.sm, gap: spacing.xxs }}>
+          <Text variant="subheading" accessibilityRole="header">
             {ranked.length} routes
           </Text>
           <Animated.View key={top.route.id} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)}>
             <Text variant="caption" tone="secondary">
               {preferences.length === 0 ? 'Ranked by overall ACCESS SCORE · ' : 'Ranked for your preferences · '}
-              <Text variant="caption" tone="accent" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                {top.route.label} recommended
-              </Text>
+              <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                {top.route.label}
+              </Text>{' '}
+              recommended
             </Text>
           </Animated.View>
+          {!isDemoTrip && (
+            <Text variant="caption" tone="tertiary">
+              Prototype: showing demo routes for {DEMO_TRIP.from} → {DEMO_TRIP.to}.
+            </Text>
+          )}
         </View>
 
         {/* live preference bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={{
-            paddingHorizontal: screenPadding,
-            paddingVertical: spacing.md,
-            gap: spacing.sm,
-          }}
-        >
+        <PreferenceScroller>
           {ROUTE_PREFERENCE_KEYS.map((key) => (
             <PreferencePill
               key={key}
+              size="sm"
               option={PREFERENCE_BY_KEY[key]}
               selected={hasPreference(key)}
               onToggle={() => onToggle(key)}
               tone={preferenceTone(key)}
             />
           ))}
-        </ScrollView>
+        </PreferenceScroller>
 
         {/* ranked cards */}
         <ScrollView
@@ -176,22 +191,17 @@ export default function Results() {
           contentContainerStyle={{
             paddingHorizontal: screenPadding,
             paddingTop: spacing.xs,
-            paddingBottom: insets.bottom + spacing['2xl'],
-            gap: spacing.md,
+            paddingBottom: insets.bottom + layout.section,
+            gap: layout.stack,
           }}
         >
-          {!isDemoTrip && (
-            <Text variant="caption" tone="secondary">
-              Prototype: showing demo routes for {DEMO_TRIP.from} → {DEMO_TRIP.to}.
-            </Text>
-          )}
-
           {ranked.map(({ route, rank, bestFor }) => (
             <Animated.View key={route.id} layout={REORDER}>
               <RouteCard
                 route={route}
                 recommended={rank === 1}
                 selected={route.id === selectedId}
+                expanded={route.id === expandedId}
                 highlight={
                   bestFor.length > 0
                     ? `Best for ${bestFor
@@ -200,33 +210,86 @@ export default function Results() {
                         .join(' · ')}`
                     : undefined
                 }
-                onPress={() => setPickedId(route.id)}
+                onPress={() => onCardPress(route.id)}
                 onViewDetails={() => router.push({ pathname: '/route-details', params: { id: route.id } })}
               />
             </Animated.View>
           ))}
 
           <Animated.View layout={REORDER} style={{ flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.sm }}>
-            <Info size={14} color={colors.text.secondary} style={{ marginTop: 2 }} />
+            <Info size={14} color={colors.text.tertiary} style={{ marginTop: 2 }} />
             <View style={{ flex: 1, gap: spacing.xs }}>
-              <Text variant="caption" tone="secondary">
+              <Text variant="caption" tone="tertiary">
                 ACCESS SCORE compares these routes using available data. It is not a safety rating or
                 official guidance. Route data is illustrative. {SHORT_DISCLAIMER}
               </Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => router.push('/accessibility')}
-                hitSlop={8}
-                style={({ pressed }) => ({ alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
-              >
-                <Text variant="caption" tone="accent" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                  How scoring works
-                </Text>
-              </Pressable>
+              <TextLink title="How scoring works" onPress={() => router.push('/accessibility')} />
             </View>
           </Animated.View>
         </ScrollView>
       </View>
     </View>
+  );
+}
+
+// ───────────────────────────── local pieces ─────────────────────────────
+
+const FADE_WIDTH = 32;
+const SHEET_BG = colors.palette.canvas.mid;
+const SHEET_BG_CLEAR = 'rgba(251,250,248,0)'; // canvas.mid at 0 alpha
+
+/**
+ * Horizontal pill row with soft edge fades. The right fade shows while more pills are off
+ * screen, the left one once you've scrolled — so it's always clear the row continues.
+ */
+function PreferenceScroller({ children }: { children: ReactNode }) {
+  const [edges, setEdges] = useState({ start: false, end: true });
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const start = contentOffset.x > 4;
+    const end = contentOffset.x + layoutMeasurement.width < contentSize.width - 4;
+    if (start !== edges.start || end !== edges.end) setEdges({ start, end });
+  };
+
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{
+          paddingHorizontal: screenPadding,
+          paddingVertical: layout.stack,
+          gap: spacing.sm,
+        }}
+      >
+        {children}
+      </ScrollView>
+      <EdgeFade side="left" visible={edges.start} />
+      <EdgeFade side="right" visible={edges.end} />
+    </View>
+  );
+}
+
+function EdgeFade({ side, visible }: { side: 'left' | 'right'; visible: boolean }) {
+  const colorsLR = side === 'left' ? [SHEET_BG, SHEET_BG_CLEAR] : [SHEET_BG_CLEAR, SHEET_BG];
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={colorsLR as [string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        [side]: 0,
+        width: FADE_WIDTH,
+        opacity: visible ? 1 : 0,
+      }}
+    />
   );
 }

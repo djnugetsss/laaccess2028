@@ -1,11 +1,28 @@
-import { ChevronRight, Sparkles } from 'lucide-react-native';
+import {
+  Accessibility,
+  Car,
+  ChevronDown,
+  ChevronRight,
+  CircleParking,
+  Sparkles,
+  Sun,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { RouteFlag, RouteOption } from '@/lib/types';
-import { colors, radii, shadows, spacing } from '@/theme';
+import { colors, layout, layoutSpring, radii, shadows, spacing } from '@/theme';
 
 import { AccessScoreRing } from './AccessScoreRing';
-import { AttributePill } from './AttributePill';
 import { DataConfidenceBadge } from './DataConfidenceBadge';
 import { Text } from './Text';
 
@@ -13,57 +30,57 @@ type Props = {
   route: RouteOption & { flags?: RouteFlag[] };
   onPress?: () => void;
   selected?: boolean;
-  /** Marks the top-ranked route with a "Recommended" chip. */
+  /** Marks the top-ranked route with a "Recommended" tag. */
   recommended?: boolean;
-  /** Short line under the header, e.g. "Best for Less Walking · Accessibility". */
+  /** Plain secondary line in the expanded detail, e.g. "Best for Less Walking · Accessibility". */
   highlight?: string;
   onViewDetails?: () => void;
   showConfidence?: boolean;
+  /** Controlled expanded state. When omitted, the card toggles itself on press. */
+  expanded?: boolean;
 };
 
-const FLAG_LABELS: Record<RouteFlag, { icon: string; label: string }> = {
-  eventTraffic: { icon: '🚦', label: 'Event traffic risk' },
-  limitedParking: { icon: '🅿️', label: 'Limited parking' },
+const FLAGS: Record<RouteFlag, { Icon: LucideIcon; label: string }> = {
+  eventTraffic: { Icon: Car, label: 'Event traffic risk' },
+  limitedParking: { Icon: CircleParking, label: 'Limited parking' },
 };
+
+const RING_SIZE = 72;
+const SELECTED_BORDER = 1.5;
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-/**
- * Attribute pills in a fixed order so cards scan consistently. Unknown data is stated as
- * unknown — never filled in.
- */
-function attributes(route: RouteOption) {
-  const accessible =
+/** Honest, plain-language facts. Unknown data is stated as unknown — never filled in. */
+function facts(route: RouteOption) {
+  const access =
     route.accessible === null
-      ? { label: 'Accessibility information unavailable', tone: 'neutral' as const }
+      ? 'Accessibility information unavailable'
       : route.accessible
-        ? { label: 'Step-free', tone: 'blue' as const }
-        : { label: 'Not step-free', tone: 'neutral' as const };
+        ? 'Step-free, based on available data'
+        : 'Not step-free';
 
   const stairs =
-    route.stairs < 0 ? 'Stair data unavailable' : route.stairs === 0 ? 'No known stairs' : plural(route.stairs, 'stair');
+    route.stairs < 0
+      ? 'Stair information unavailable'
+      : route.stairs === 0
+        ? 'No known stairs based on available data'
+        : `${plural(route.stairs, 'known stair')} on this route`;
 
   const exposure =
     route.outdoorExposure === null
-      ? 'Exposure data unavailable'
-      : { low: 'Low exposure', moderate: 'Moderate exposure', high: 'High exposure' }[route.outdoorExposure];
+      ? 'Outdoor exposure data unavailable'
+      : `${{ low: 'Low', moderate: 'Moderate', high: 'High' }[route.outdoorExposure]} outdoor exposure`;
 
-  return [
-    { icon: '♿', ...accessible },
-    { icon: '🚶', label: `${route.walkingMiles} mi walk`, tone: 'neutral' as const },
-    { icon: '🪜', label: stairs, tone: 'neutral' as const },
-    { icon: '🌡️', label: exposure, tone: 'neutral' as const },
-    {
-      icon: '🔄',
-      label: route.transfers === 0 ? 'No transfers' : plural(route.transfers, 'transfer'),
-      tone: 'neutral' as const,
-    },
-  ];
+  return { access, stairs, exposure };
 }
 
-/** Route summary: label, ACCESS SCORE, duration, attribute pills, data confidence. */
+/**
+ * Route summary built around a hero + collapsible detail.
+ * Collapsed: ACCESS SCORE ring (the focal point), label, mode. Expanded: trip stats,
+ * accessibility facts, data confidence, and a link to the full breakdown.
+ */
 export function RouteCard({
   route,
   onPress,
@@ -72,102 +89,146 @@ export function RouteCard({
   highlight,
   onViewDetails,
   showConfidence = true,
+  expanded,
 }: Props) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = expanded ?? ownOpen;
+
+  const chevron = useSharedValue(open ? 1 : 0);
+  useEffect(() => {
+    chevron.value = withTiming(open ? 1 : 0, { duration: 240, easing: Easing.out(Easing.cubic) });
+  }, [open, chevron]);
+  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${chevron.value * 180}deg` }] }));
+
+  const handlePress = () => {
+    if (expanded === undefined) setOwnOpen((v) => !v);
+    onPress?.();
+  };
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: !!selected }}
-      accessibilityLabel={`${recommended ? 'Recommended. ' : ''}${route.label}. ${route.mode}. ${route.durationMinutes} minutes. Access score ${route.totalAccessScore} out of 100.`}
-      disabled={!onPress}
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          padding: spacing.lg + 2,
-          gap: spacing.lg,
+    // Two layers: the outer one carries the shadow, the inner one clips the content while the
+    // height animates. Both share the reorder spring so expand and reorder feel like one motion.
+    <Animated.View layout={layoutSpring} style={[{ borderRadius: radii.xl, backgroundColor: colors.background.surface }, shadows.md]}>
+      <Animated.View
+        layout={layoutSpring}
+        style={{
           borderRadius: radii.xl,
           borderCurve: 'continuous',
-          backgroundColor: colors.background.surface,
-          borderWidth: selected ? 1.5 : 0.5,
-          borderColor: selected ? colors.action.primary : colors.border.hairline,
-          transform: [{ scale: pressed ? 0.985 : 1 }],
-        },
-        shadows.md,
-      ]}
+          overflow: 'hidden',
+          borderWidth: SELECTED_BORDER,
+          borderColor: selected ? colors.action.primary : 'transparent',
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!selected, expanded: open }}
+          accessibilityLabel={`${recommended ? 'Recommended. ' : ''}${route.label}. ${route.mode}. Access score ${route.totalAccessScore} out of 100.`}
+          accessibilityHint={open ? 'Hides route details' : 'Shows route details and selects this route on the map'}
+          onPress={handlePress}
+          style={({ pressed }) => ({
+            padding: layout.cardPadding - SELECTED_BORDER,
+            backgroundColor: pressed ? colors.background.sunken : colors.background.surface,
+          })}
+        >
+          {/* ─── hero ─── */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: layout.cardPadding }}>
+            <AccessScoreRing score={route.totalAccessScore} size={RING_SIZE} />
+            <View style={{ flex: 1, gap: spacing.xxs }}>
+              {recommended && <RecommendedTag />}
+              <Text variant="subheading" numberOfLines={1}>
+                {route.label}
+              </Text>
+              <Text variant="callout" tone="secondary" numberOfLines={1}>
+                {route.mode}
+              </Text>
+            </View>
+            <Animated.View style={chevronStyle}>
+              <ChevronDown size={20} color={colors.text.tertiary} strokeWidth={2.2} />
+            </Animated.View>
+          </View>
+
+          {/* ─── detail ─── */}
+          {open && (
+            <Animated.View entering={FadeIn.duration(220).delay(60)} exiting={FadeOut.duration(120)}>
+              <Detail
+                route={route}
+                highlight={highlight}
+                showConfidence={showConfidence}
+                onViewDetails={onViewDetails}
+              />
+            </Animated.View>
+          )}
+        </Pressable>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+function RecommendedTag() {
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xxs,
+        marginBottom: spacing.xxs,
+        borderRadius: radii.full,
+        backgroundColor: colors.background.sunken,
+      }}
     >
-      {/* header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            {recommended && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: radii.full,
-                  backgroundColor: colors.action.primarySoft,
-                }}
-              >
-                <Sparkles size={11} color={colors.text.accent} strokeWidth={2.5} />
-                <Text variant="overline" tone="accent" style={{ letterSpacing: 0.5 }}>
-                  Recommended
-                </Text>
-              </View>
-            )}
-            <Text variant="overline" tone="secondary">
-              {route.label}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-            <Text variant="title" style={{ fontVariant: ['tabular-nums'] }}>
-              {route.durationMinutes}
-            </Text>
-            <Text variant="bodyStrong" tone="secondary">
-              min
-            </Text>
-          </View>
-          <Text variant="callout" tone="secondary" numberOfLines={1}>
-            {route.mode}
-          </Text>
-        </View>
-        <AccessScoreRing score={route.totalAccessScore} size={64} />
+      <Sparkles size={11} color={colors.text.primary} strokeWidth={2.5} />
+      <Text variant="overline" style={{ letterSpacing: 0.5 }}>
+        Recommended
+      </Text>
+    </View>
+  );
+}
+
+function Detail({
+  route,
+  highlight,
+  showConfidence,
+  onViewDetails,
+}: Pick<Props, 'route' | 'highlight' | 'showConfidence' | 'onViewDetails'>) {
+  const f = facts(route);
+
+  return (
+    <View
+      style={{
+        marginTop: layout.cardPadding,
+        paddingTop: layout.cardPadding,
+        borderTopWidth: 1,
+        borderTopColor: colors.border.hairline,
+        gap: layout.cardPadding,
+      }}
+    >
+      {/* trip stats */}
+      <View style={{ flexDirection: 'row' }}>
+        <Stat value={`${route.durationMinutes}`} unit="min" label="Duration" />
+        <Stat value={`${route.walkingMiles}`} unit="mi" label="Walking" />
+        <Stat value={`${route.transfers}`} label={route.transfers === 1 ? 'Transfer' : 'Transfers'} />
+      </View>
+
+      {/* accessibility + exposure facts */}
+      <View style={{ gap: spacing.md }}>
+        <FactRow Icon={Accessibility} text={f.access} secondary={f.stairs} unknown={route.accessible === null} />
+        <FactRow Icon={Sun} text={f.exposure} unknown={route.outdoorExposure === null} />
+        {route.flags?.map((flag) => (
+          <FactRow key={flag} Icon={FLAGS[flag].Icon} text={FLAGS[flag].label} />
+        ))}
       </View>
 
       {highlight ? (
-        <Text variant="caption" tone="accent" style={{ marginTop: -spacing.sm }}>
+        <Text variant="caption" tone="secondary">
           {highlight}
         </Text>
       ) : null}
 
-      {/* attributes */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {attributes(route).map((a) => (
-          <AttributePill key={a.icon} icon={a.icon} label={a.label} tone={a.tone} />
-        ))}
-        {route.flags?.map((f) => (
-          <AttributePill key={f} icon={FLAG_LABELS[f].icon} label={FLAG_LABELS[f].label} tone="pink" />
-        ))}
-      </View>
-
-      {route.stairs === 0 && (
-        <Text variant="caption" tone="secondary" style={{ marginTop: -spacing.sm }}>
-          No known stairs based on available data.
-        </Text>
-      )}
-
       {(showConfidence || onViewDetails) && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderTopWidth: 1,
-            borderTopColor: colors.border.hairline,
-            paddingTop: spacing.md,
-          }}
-        >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           {showConfidence ? <DataConfidenceBadge level={route.dataConfidence} /> : <View />}
           {onViewDetails && (
             <Pressable
@@ -178,18 +239,70 @@ export function RouteCard({
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 2,
+                gap: spacing.xxs,
+                minHeight: 32,
                 opacity: pressed ? 0.6 : 1,
               })}
             >
-              <Text variant="caption" tone="accent" style={{ fontFamily: 'Inter_600SemiBold' }}>
+              <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold' }}>
                 View details
               </Text>
-              <ChevronRight size={15} color={colors.text.accent} strokeWidth={2.4} />
+              <ChevronRight size={15} color={colors.text.primary} strokeWidth={2.4} />
             </Pressable>
           )}
         </View>
       )}
-    </Pressable>
+    </View>
+  );
+}
+
+function Stat({ value, unit, label }: { value: string; unit?: string; label: string }) {
+  return (
+    <View accessible accessibilityLabel={`${label}: ${value}${unit ? ` ${unit}` : ''}`} style={{ flex: 1, gap: spacing.xxs }}>
+      <Text variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>
+        {value}
+        {unit ? (
+          <Text variant="caption" tone="secondary">
+            {' '}
+            {unit}
+          </Text>
+        ) : null}
+      </Text>
+      <Text variant="caption" tone="tertiary">
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function FactRow({
+  Icon,
+  text,
+  secondary,
+  unknown,
+}: {
+  Icon: LucideIcon;
+  text: string;
+  secondary?: string;
+  unknown?: boolean;
+}) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={secondary ? `${text}. ${secondary}` : text}
+      style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}
+    >
+      <Icon size={16} color={colors.text.tertiary} strokeWidth={2.2} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1, gap: spacing.xxs }}>
+        <Text variant="callout" tone={unknown ? 'secondary' : 'primary'}>
+          {text}
+        </Text>
+        {secondary ? (
+          <Text variant="caption" tone="secondary">
+            {secondary}
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
