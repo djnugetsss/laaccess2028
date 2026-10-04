@@ -4,6 +4,7 @@ import { ArrowRight, Info } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
+  ActivityIndicator,
   ScrollView,
   useWindowDimensions,
   View,
@@ -15,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   BackButton,
+  Notice,
   PreferencePill,
   preferenceTone,
   RouteCard,
@@ -23,11 +25,11 @@ import {
   TextLink,
 } from '@/components';
 import { SHORT_DISCLAIMER } from '@/lib/constants';
-import { DESTINATION, MOCK_ROUTES, ORIGIN } from '@/lib/mockRoutes';
 import { PREFERENCE_BY_KEY, ROUTE_PREFERENCE_KEYS } from '@/lib/preferences';
+import { useRouteSet } from '@/lib/routes';
 import { rankRoutes } from '@/lib/scoreEngine';
-import { DEMO_TRIP, useTrip } from '@/lib/trip';
-import type { PreferenceKey } from '@/lib/types';
+import { DEMO_FROM_PLACE, DEMO_TO_PLACE, DEMO_TRIP, useTrip } from '@/lib/trip';
+import type { Place, PreferenceKey } from '@/lib/types';
 import { colors, layout, layoutSpring, radii, screenPadding, shadows, spacing } from '@/theme';
 
 /** Live reorder spring. Shared with the card expand animation so both move as one. */
@@ -39,14 +41,20 @@ const SHEET_OVERLAP = 28;
 export default function Results() {
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
-  const { from, to, preferences, togglePreference, hasPreference } = useTrip();
+  const { from, to, fromPlace, toPlace, preferences, togglePreference, hasPreference } = useTrip();
+  const { routes, loading, isDemoTrip, failed, retry } = useRouteSet();
 
-  const ranked = useMemo(() => rankRoutes(MOCK_ROUTES, preferences), [preferences]);
+  const ranked = useMemo(() => rankRoutes(routes, preferences), [routes, preferences]);
   const top = ranked[0];
 
-  // Follow the recommended route until the user explicitly picks one.
+  // Follow the recommended route until the user explicitly picks one that still exists.
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const selectedId = pickedId ?? top.route.id;
+  const selectedId =
+    (pickedId && routes.some((r) => r.id === pickedId) ? pickedId : top?.route.id) ?? '';
+
+  // Results is only reachable with both places set; demo places are a crash-proof fallback.
+  const origin = toEndpoint(fromPlace ?? DEMO_FROM_PLACE);
+  const destination = toEndpoint(toPlace ?? DEMO_TO_PLACE);
 
   // At most one card open at a time; all collapsed on load so scores compare at a glance.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -56,13 +64,16 @@ export default function Results() {
   };
 
   const listRef = useRef<ScrollView>(null);
-  const prevTop = useRef(top.route.id);
+  const topId = top?.route.id;
+  const topLabel = top?.route.label;
+  const prevTop = useRef(topId);
   useEffect(() => {
-    if (prevTop.current === top.route.id) return;
-    prevTop.current = top.route.id;
+    if (prevTop.current === topId) return;
+    prevTop.current = topId;
+    if (!topId) return;
     listRef.current?.scrollTo({ y: 0, animated: true });
-    AccessibilityInfo.announceForAccessibility(`${top.route.label} is now recommended.`);
-  }, [top.route.id, top.route.label]);
+    AccessibilityInfo.announceForAccessibility(`${topLabel} is now recommended.`);
+  }, [topId, topLabel]);
 
   const onToggle = (key: PreferenceKey) => {
     togglePreference(key);
@@ -71,17 +82,16 @@ export default function Results() {
 
   const mapHeight = screenH * MAP_FRACTION + SHEET_OVERLAP;
   const headerHeight = insets.top + 56;
-  const isDemoTrip = from.trim() === DEMO_TRIP.from && to.trim() === DEMO_TRIP.to;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.palette.canvas.bottom }}>
       {/* ─── map ─── */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: mapHeight }}>
         <RouteMap
-          routes={MOCK_ROUTES}
+          routes={routes}
           selectedId={selectedId}
-          origin={ORIGIN}
-          destination={DESTINATION}
+          origin={origin}
+          destination={destination}
           onSelectRoute={setPickedId}
           insets={{ top: headerHeight, bottom: SHEET_OVERLAP }}
         />
@@ -118,11 +128,19 @@ export default function Results() {
             shadows.sm,
           ]}
         >
-          <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'Inter_600SemiBold' }}>
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ flexShrink: 1, fontFamily: 'Inter_600SemiBold' }}
+          >
             {from}
           </Text>
           <ArrowRight size={13} color={colors.text.tertiary} strokeWidth={2.4} />
-          <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'Inter_600SemiBold' }}>
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ flexShrink: 1, fontFamily: 'Inter_600SemiBold' }}
+          >
             {to}
           </Text>
         </View>
@@ -146,27 +164,38 @@ export default function Results() {
         ]}
       >
         <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>
-          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: colors.border.strong }} />
+          <View
+            style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: colors.border.strong }}
+          />
         </View>
 
         {/* quiet header */}
-        <View style={{ paddingHorizontal: screenPadding, paddingTop: spacing.sm, gap: spacing.xxs }}>
+        <View
+          style={{ paddingHorizontal: screenPadding, paddingTop: spacing.sm, gap: spacing.xxs }}
+        >
           <Text variant="subheading" accessibilityRole="header">
-            {ranked.length} routes
+            {ranked.length > 0
+              ? `${ranked.length} routes`
+              : loading
+                ? 'Finding routes…'
+                : 'No routes yet'}
           </Text>
-          <Animated.View key={top.route.id} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)}>
-            <Text variant="caption" tone="secondary">
-              {preferences.length === 0 ? 'Ranked by overall ACCESS SCORE · ' : 'Ranked for your preferences · '}
-              <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                {top.route.label}
-              </Text>{' '}
-              recommended
-            </Text>
-          </Animated.View>
-          {!isDemoTrip && (
-            <Text variant="caption" tone="tertiary">
-              Prototype: showing demo routes for {DEMO_TRIP.from} → {DEMO_TRIP.to}.
-            </Text>
+          {top && (
+            <Animated.View
+              key={top.route.id}
+              entering={FadeIn.duration(260)}
+              exiting={FadeOut.duration(120)}
+            >
+              <Text variant="caption" tone="secondary">
+                {preferences.length === 0
+                  ? 'Ranked by overall ACCESS SCORE · '
+                  : 'Ranked for your preferences · '}
+                <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                  {top.route.label}
+                </Text>{' '}
+                recommended
+              </Text>
+            </Animated.View>
           )}
         </View>
 
@@ -195,6 +224,42 @@ export default function Results() {
             gap: layout.stack,
           }}
         >
+          {loading && (
+            <Animated.View
+              layout={REORDER}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+            >
+              <ActivityIndicator size="small" color={colors.text.tertiary} />
+              <Text variant="caption" tone="tertiary">
+                Getting real driving and walking directions…
+              </Text>
+            </Animated.View>
+          )}
+
+          {!loading && routes.length === 0 && (
+            <Notice
+              tone="caution"
+              title="Couldn’t load routes"
+              body={
+                <View style={{ gap: spacing.xs }}>
+                  <Text variant="callout" style={{ color: colors.signal.medium.text }}>
+                    We couldn’t reach Mapbox for this trip. Check your connection and try again.
+                  </Text>
+                  <TextLink title="Try again" onPress={retry} />
+                </View>
+              }
+            />
+          )}
+
+          {!loading && routes.length > 0 && failed.length > 0 && (
+            <Animated.View layout={REORDER} style={{ gap: spacing.xxs }}>
+              <Text variant="caption" tone="tertiary">
+                Couldn’t load {failed.join(' or ')} directions for this trip.
+              </Text>
+              <TextLink title="Try again" onPress={retry} />
+            </Animated.View>
+          )}
+
           {ranked.map(({ route, rank, bestFor }) => (
             <Animated.View key={route.id} layout={REORDER}>
               <RouteCard
@@ -211,17 +276,29 @@ export default function Results() {
                     : undefined
                 }
                 onPress={() => onCardPress(route.id)}
-                onViewDetails={() => router.push({ pathname: '/route-details', params: { id: route.id } })}
+                onViewDetails={() =>
+                  router.push({ pathname: '/route-details', params: { id: route.id } })
+                }
               />
             </Animated.View>
           ))}
 
-          <Animated.View layout={REORDER} style={{ flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.sm }}>
+          <Animated.View
+            layout={REORDER}
+            style={{ flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.sm }}
+          >
             <Info size={14} color={colors.text.tertiary} style={{ marginTop: 2 }} />
             <View style={{ flex: 1, gap: spacing.xs }}>
+              {!isDemoTrip && (
+                <Text variant="caption" tone="tertiary">
+                  Transit isn’t routed yet. Demo transit routes are only available for the{' '}
+                  {DEMO_TRIP.from} → {DEMO_TRIP.to} trip.
+                </Text>
+              )}
               <Text variant="caption" tone="tertiary">
-                ACCESS SCORE compares these routes using available data. It is not a safety rating or
-                official guidance. Route data is illustrative. {SHORT_DISCLAIMER}
+                ACCESS SCORE compares these routes using available data. It is not a safety rating
+                or official guidance. Accessibility, heat, and reliability are estimates.{' '}
+                {SHORT_DISCLAIMER}
               </Text>
               <TextLink title="How scoring works" onPress={() => router.push('/accessibility')} />
             </View>
@@ -233,6 +310,8 @@ export default function Results() {
 }
 
 // ───────────────────────────── local pieces ─────────────────────────────
+
+const toEndpoint = (p: Place) => ({ label: p.name, coordinate: p.coordinate });
 
 const FADE_WIDTH = 32;
 const SHEET_BG = colors.palette.canvas.mid;

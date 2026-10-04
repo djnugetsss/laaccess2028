@@ -19,7 +19,7 @@ import { PREFERENCE_BY_KEY } from '@/lib/preferences';
 import { SCORE_MAX } from '@/lib/scoreEngine';
 import { useTrip } from '@/lib/trip';
 import type { PreferenceKey } from '@/lib/types';
-import { colors, radii, screenPadding, spacing } from '@/theme';
+import { colors, layout, radii, screenPadding, spacing } from '@/theme';
 
 /** Plain-language explanation of each preference. Matches lib/scoreEngine.ts behavior. */
 const TOPICS: {
@@ -80,18 +80,18 @@ export default function AccessibilityScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + spacing.sm,
           paddingHorizontal: screenPadding,
-          paddingBottom: insets.bottom + spacing['2xl'],
-          gap: spacing['2xl'],
+          paddingBottom: insets.bottom + layout.section,
+          gap: layout.section,
         }}
       >
-        <View>
+        <View style={{ gap: layout.stack }}>
           <BackButton />
-          <View style={{ height: spacing.lg }} />
           <ScreenHeader
             eyebrow="How it works"
             title="Accessibility"
             subtitle="ACCESS LA28 combines available transportation and accessibility information to help users compare routes."
           />
+          <View style={{ height: spacing.sm }} />
           <Notice
             tone="caution"
             title="Please verify before you go"
@@ -114,11 +114,13 @@ export default function AccessibilityScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={enter(1)} style={{ gap: spacing.md }}>
+        <Animated.View entering={enter(1)}>
           <SectionHeader title="What each preference does" />
-          {TOPICS.map((t) => (
-            <Topic key={t.pref} {...t} />
-          ))}
+          <View style={{ gap: layout.stack }}>
+            {TOPICS.map((t) => (
+              <Topic key={t.pref} {...t} />
+            ))}
+          </View>
         </Animated.View>
 
         <Animated.View entering={enter(2)}>
@@ -134,8 +136,8 @@ export default function AccessibilityScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.md + 2,
+                  paddingHorizontal: layout.cardPadding,
+                  paddingVertical: spacing.md,
                   borderBottomWidth: i === SCORE_ROWS.length - 1 ? 0 : 1,
                   borderBottomColor: colors.border.hairline,
                 }}
@@ -147,7 +149,7 @@ export default function AccessibilityScreen() {
               </View>
             ))}
           </Card>
-          <Text variant="caption" tone="secondary" style={{ marginTop: spacing.sm }}>
+          <Text variant="caption" tone="secondary" style={{ marginTop: layout.stack }}>
             Your preferences change the order routes are recommended in — not a route’s score. Every score
             is shown with its data confidence and sources.
           </Text>
@@ -178,7 +180,7 @@ function Topic({ pref: prefKey, title, does, unknown }: (typeof TOPICS)[number])
   const option = PREFERENCE_BY_KEY[prefKey];
   const tone = colors.accent[preferenceTone(prefKey)];
   return (
-    <Card padding="lg" style={{ gap: spacing.md }}>
+    <Card padding="md" style={{ gap: spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <View
           style={{
@@ -211,14 +213,11 @@ function Topic({ pref: prefKey, title, does, unknown }: (typeof TOPICS)[number])
 
 function InfoLine({ label, text }: { label: string; text: string }) {
   return (
-    <View style={{ gap: 2, padding: spacing.md, borderRadius: radii.md, backgroundColor: colors.background.sunken }}>
-      <Text variant="overline" tone="secondary">
-        {label}
+    <Text variant="caption" tone="secondary">
+      <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold', color: colors.text.secondary }}>
+        {label}:{' '}
       </Text>
-      <Text variant="caption" tone="secondary">
-        {text}
-      </Text>
-    </View>
+      {text}
+    </Text>
   );
 }
-

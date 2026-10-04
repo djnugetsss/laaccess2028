@@ -8,7 +8,7 @@ import {
   TrainFront,
 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,16 +25,18 @@ import {
   ScoreBar,
   ScreenHeader,
   SecondaryButton,
+  SectionHeader,
   Text,
+  TextLink,
   TrustTag,
 } from '@/components';
 import { SHORT_DISCLAIMER } from '@/lib/constants';
-import { getMockRoute, MOCK_ROUTES } from '@/lib/mockRoutes';
 import { scoreBand } from '@/lib/score';
+import { useRouteSet } from '@/lib/routes';
 import { rankRoutes, SCORE_MAX } from '@/lib/scoreEngine';
 import { useTrip } from '@/lib/trip';
 import type { MappedRoute, TrustLevel } from '@/lib/types';
-import { colors, radii, screenPadding, spacing } from '@/theme';
+import { colors, layout, radii, screenPadding, spacing } from '@/theme';
 
 const SCORE_FOOTNOTE =
   'The ACCESS SCORE is a transparent route-comparison score based on walking distance, known accessibility information, transfers, estimated outdoor exposure, and route complexity. It is not an official or medical rating.';
@@ -47,14 +49,41 @@ const TRUST_DESCRIPTION: Record<TrustLevel, string> = {
 
 const UNAVAILABLE = 'Information unavailable';
 
+/** What the route's distance and time are based on. Real and demo are never shown alike. */
+const ROUTE_SOURCE: Record<
+  MappedRoute['source'],
+  { tag: TrustLevel; label: string; body: string }
+> = {
+  mapbox: {
+    tag: 'open',
+    label: 'Mapbox',
+    body: 'Real route, distance, and travel time from Mapbox Directions',
+  },
+  demo: {
+    tag: 'estimated',
+    label: 'Demo data',
+    body: 'Demo transit data — not real schedules or routing',
+  },
+  fallback: {
+    tag: 'estimated',
+    label: 'Demo data',
+    body: 'Real directions failed to load — showing the demo route',
+  },
+};
+
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/results'));
 
 export default function RouteDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const route = getMockRoute(id);
+  const route = useRouteSet().getRoute(id);
 
   if (!route) {
-    return <ComingSoon title="Route not found" subtitle="This route isn’t available. Go back and pick another." />;
+    return (
+      <ComingSoon
+        title="Route not found"
+        subtitle="This route isn’t available. Go back and pick another."
+      />
+    );
   }
   return <Details route={route} />;
 }
@@ -62,17 +91,30 @@ export default function RouteDetails() {
 function Details({ route }: { route: MappedRoute }) {
   const insets = useSafeAreaInsets();
   const { preferences } = useTrip();
-  const rank = rankRoutes(MOCK_ROUTES, preferences).find((r) => r.route.id === route.id)?.rank;
+  const { routes } = useRouteSet();
+  const rank = rankRoutes(routes, preferences).find((r) => r.route.id === route.id)?.rank;
+  const real = route.source === 'mapbox';
+  const source = ROUTE_SOURCE[route.source];
 
   const accessUnknown = route.accessible === null;
   const stairsUnknown = route.stairs < 0;
 
   const breakdown = [
-    { label: 'Accessibility', value: route.accessibilityScore, max: SCORE_MAX.accessibility, Icon: Accessibility },
+    {
+      label: 'Accessibility',
+      value: route.accessibilityScore,
+      max: SCORE_MAX.accessibility,
+      Icon: Accessibility,
+    },
     { label: 'Walking', value: route.walkingScore, max: SCORE_MAX.walking, Icon: Footprints },
     { label: 'Heat', value: route.heatScore, max: SCORE_MAX.heat, Icon: Sun },
     { label: 'Transit', value: route.transitScore, max: SCORE_MAX.transit, Icon: TrainFront },
-    { label: 'Reliability', value: route.reliabilityScore, max: SCORE_MAX.reliability, Icon: Clock },
+    {
+      label: 'Reliability',
+      value: route.reliabilityScore,
+      max: SCORE_MAX.reliability,
+      Icon: Clock,
+    },
   ];
 
   const enter = (i: number) => FadeInDown.delay(80 + i * 70).duration(420);
@@ -83,20 +125,20 @@ function Details({ route }: { route: MappedRoute }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + spacing.sm,
-          paddingBottom: insets.bottom + spacing['2xl'],
+          paddingBottom: insets.bottom + layout.section,
           paddingHorizontal: screenPadding,
-          gap: spacing['2xl'],
+          gap: layout.section,
         }}
       >
         <View>
           <BackButton onPress={goBack} />
-          <View style={{ height: spacing.lg }} />
+          <View style={{ height: layout.stack }} />
           <ScreenHeader
             eyebrow={
               rank === 1
                 ? 'Recommended for your preferences'
                 : rank
-                  ? `#${rank} of ${MOCK_ROUTES.length} for your preferences`
+                  ? `#${rank} of ${routes.length} for your preferences`
                   : undefined
             }
             title={route.label}
@@ -105,8 +147,8 @@ function Details({ route }: { route: MappedRoute }) {
         </View>
 
         {/* ─── score ─── */}
-        <Animated.View entering={enter(0)} style={{ marginTop: -spacing.xl }}>
-          <Card padding="lg" style={{ alignItems: 'center', gap: spacing.lg }}>
+        <Animated.View entering={enter(0)}>
+          <Card padding="lg" style={{ alignItems: 'center', gap: layout.stack }}>
             <AccessScoreRing score={route.totalAccessScore} size={184} />
             <View
               style={{
@@ -127,23 +169,16 @@ function Details({ route }: { route: MappedRoute }) {
                   backgroundColor: colors.signal[scoreBand(route.totalAccessScore)].solid,
                 }}
               />
-              <Text variant="caption" style={{ color: colors.signal[scoreBand(route.totalAccessScore)].text }}>
+              <Text
+                variant="caption"
+                style={{ color: colors.signal[scoreBand(route.totalAccessScore)].text }}
+              >
                 {capitalize(BAND_LABEL[scoreBand(route.totalAccessScore)])} score range
               </Text>
             </View>
-            <Text variant="caption" tone="secondary" style={{ textAlign: 'center', paddingHorizontal: spacing.sm }}>
-              {SCORE_FOOTNOTE}
-            </Text>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push('/accessibility')}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, minHeight: 32, justifyContent: 'center' })}
-            >
-              <Text variant="caption" tone="accent" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                How scoring works
-              </Text>
-            </Pressable>
+            <View style={{ alignSelf: 'center' }}>
+              <TextLink title="How scoring works" onPress={() => router.push('/accessibility')} />
+            </View>
           </Card>
         </Animated.View>
 
@@ -152,7 +187,11 @@ function Details({ route }: { route: MappedRoute }) {
           <Animated.View entering={enter(1)}>
             <Notice
               tone="caution"
-              title={accessUnknown ? 'Accessibility information unavailable' : 'Stair information unavailable'}
+              title={
+                accessUnknown
+                  ? 'Accessibility information unavailable'
+                  : 'Stair information unavailable'
+              }
               body="Check official venue information before traveling."
             />
           </Animated.View>
@@ -184,7 +223,14 @@ function Details({ route }: { route: MappedRoute }) {
                 }
                 unknown={stairsUnknown}
               />
-              <Fact label="Walking" value={`${route.walkingMiles} mi · ${route.walkingMinutes} min`} />
+              <Fact
+                label="Walking"
+                value={
+                  route.walkingMiles === 0 && route.id === 'driving'
+                    ? 'None in the drive · parking walk not included'
+                    : `${route.walkingMiles} mi · ${route.walkingMinutes} min`
+                }
+              />
               <Fact
                 label="Transfers"
                 value={route.transfers === 0 ? 'None' : `${route.transfers}`}
@@ -200,7 +246,11 @@ function Details({ route }: { route: MappedRoute }) {
               />
               <Fact
                 label="Typical cost"
-                value={route.estimatedCostUsd === null ? 'Unavailable' : `≈ ${usd(route.estimatedCostUsd)}`}
+                value={
+                  route.estimatedCostUsd === null
+                    ? 'Unavailable'
+                    : `≈ ${usd(route.estimatedCostUsd)}`
+                }
                 unknown={route.estimatedCostUsd === null}
                 last
               />
@@ -210,8 +260,11 @@ function Details({ route }: { route: MappedRoute }) {
 
         {/* ─── breakdown ─── */}
         <Animated.View entering={enter(3)}>
-          <Section title="Score breakdown" caption="Points earned in each category, out of its maximum.">
-            <Card padding="lg" style={{ gap: spacing.xl }}>
+          <Section
+            title="Score breakdown"
+            caption="Points earned in each category, out of its maximum."
+          >
+            <Card padding="lg" style={{ gap: layout.stack }}>
               {breakdown.map((b, i) => (
                 <ScoreBar key={b.label} {...b} delay={450 + i * 110} />
               ))}
@@ -226,7 +279,9 @@ function Details({ route }: { route: MappedRoute }) {
               <ReasonList
                 reasons={[
                   ...route.whyThisRoute,
-                  ...(accessUnknown ? ['Accessibility information unavailable for this route'] : []),
+                  ...(accessUnknown
+                    ? ['Accessibility information unavailable for this route']
+                    : []),
                 ]}
               />
             </Card>
@@ -242,28 +297,50 @@ function Details({ route }: { route: MappedRoute }) {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: spacing.lg,
+                  padding: layout.cardPadding,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                   <ShieldCheck size={18} color={colors.text.secondary} />
                   <Text variant="bodyStrong">Overall</Text>
                 </View>
-                <DataConfidenceBadge level={route.dataConfidence} />
+                {real ? (
+                  <DataConfidenceBadge level={route.dataConfidence} />
+                ) : (
+                  <DataConfidenceBadge level="low" label="Demo data" />
+                )}
               </View>
-              <Source label="Accessibility" level={route.confidenceByCategory.accessibility} />
-              <Source label="Heat & exposure" level={route.confidenceByCategory.heat} />
-              <Source label="Transit" level={route.confidenceByCategory.transit} />
+              <Source
+                label="Route & travel time"
+                level={source.tag}
+                tagLabel={source.label}
+                description={source.body}
+              />
+              {/* Demo routes show every category as demo — their mock values aren't sourced data. */}
+              <Source
+                label="Accessibility"
+                level={real ? route.confidenceByCategory.accessibility : 'estimated'}
+                tagLabel={real ? undefined : 'Demo data'}
+              />
+              <Source
+                label="Heat & exposure"
+                level={real ? route.confidenceByCategory.heat : 'estimated'}
+                tagLabel={real ? undefined : 'Demo data'}
+              />
+              {!real && <Source label="Transit" level="estimated" tagLabel="Demo data" />}
             </Card>
-            <Text variant="caption" tone="secondary">
-              Route data in this prototype is illustrative.
+            <Text variant="caption" tone="secondary" style={{ marginTop: layout.stack }}>
+              {real
+                ? 'Distance and time are real. Accessibility, heat, and reliability scores are estimates until live data is connected.'
+                : 'This route uses illustrative demo data.'}{' '}
+              {SCORE_FOOTNOTE}
             </Text>
           </Section>
         </Animated.View>
 
         <SecondaryButton title="Back to routes" onPress={goBack} />
 
-        <Text variant="caption" tone="secondary" style={{ textAlign: 'center', fontSize: 12 }}>
+        <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>
           {SHORT_DISCLAIMER}
         </Text>
       </ScrollView>
@@ -276,25 +353,34 @@ function Details({ route }: { route: MappedRoute }) {
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const usd = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
 
-function Section({ title, caption, children }: { title: string; caption?: string; children: ReactNode }) {
+function Section({
+  title,
+  caption,
+  children,
+}: {
+  title: string;
+  caption?: string;
+  children: ReactNode;
+}) {
   return (
-    <View style={{ gap: spacing.md }}>
-      <View style={{ gap: 2 }}>
-        <Text variant="heading" accessibilityRole="header">
-          {title}
-        </Text>
-        {caption ? (
-          <Text variant="caption" tone="secondary">
-            {caption}
-          </Text>
-        ) : null}
-      </View>
+    <View>
+      <SectionHeader title={title} caption={caption} />
       {children}
     </View>
   );
 }
 
-function Fact({ label, value, unknown, last }: { label: string; value: string; unknown?: boolean; last?: boolean }) {
+function Fact({
+  label,
+  value,
+  unknown,
+  last,
+}: {
+  label: string;
+  value: string;
+  unknown?: boolean;
+  last?: boolean;
+}) {
   return (
     <View
       accessible
@@ -302,9 +388,9 @@ function Fact({ label, value, unknown, last }: { label: string; value: string; u
       style={{
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: spacing.lg,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md + 2,
+        gap: layout.cardPadding,
+        paddingHorizontal: layout.cardPadding,
+        paddingVertical: spacing.md,
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: colors.border.hairline,
       }}
@@ -315,7 +401,11 @@ function Fact({ label, value, unknown, last }: { label: string; value: string; u
       <Text
         variant="callout"
         tone={unknown ? 'secondary' : 'primary'}
-        style={{ flex: 1, textAlign: 'right', fontFamily: unknown ? 'Inter_400Regular' : 'Inter_500Medium' }}
+        style={{
+          flex: 1,
+          textAlign: 'right',
+          fontFamily: unknown ? 'Inter_400Regular' : 'Inter_500Medium',
+        }}
       >
         {value}
       </Text>
@@ -323,13 +413,23 @@ function Fact({ label, value, unknown, last }: { label: string; value: string; u
   );
 }
 
-function Source({ label, level }: { label: string; level: TrustLevel }) {
+function Source({
+  label,
+  level,
+  tagLabel,
+  description,
+}: {
+  label: string;
+  level: TrustLevel;
+  tagLabel?: string;
+  description?: string;
+}) {
   return (
     <View
       style={{
-        gap: 6,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md + 2,
+        gap: spacing.xs,
+        paddingHorizontal: layout.cardPadding,
+        paddingVertical: spacing.md,
         borderTopWidth: 1,
         borderTopColor: colors.border.hairline,
       }}
@@ -338,10 +438,13 @@ function Source({ label, level }: { label: string; level: TrustLevel }) {
         <Text variant="callout" style={{ fontFamily: 'Inter_500Medium' }}>
           {label}
         </Text>
-        <TrustTag source={level} />
+        <TrustTag source={level} label={tagLabel} />
       </View>
       <Text variant="caption" tone="secondary">
-        {TRUST_DESCRIPTION[level]}
+        {description ??
+          (tagLabel === 'Demo data'
+            ? 'Illustrative demo value — not sourced data'
+            : TRUST_DESCRIPTION[level])}
       </Text>
     </View>
   );

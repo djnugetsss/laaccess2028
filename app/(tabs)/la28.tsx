@@ -32,8 +32,8 @@ import {
 import { VALLEY_TYPICAL_SUMMER_HIGH_F, VENUE_ZONES } from '@/lib/la28Zones';
 import { MOCK_ROUTES } from '@/lib/mockRoutes';
 import { formatTemp, useSettings } from '@/lib/settings';
-import { DEMO_TRIP, useTrip } from '@/lib/trip';
-import { colors, radii, screenPadding, spacing } from '@/theme';
+import { DEMO_FROM_PLACE, DEMO_TO_PLACE, useTrip } from '@/lib/trip';
+import { colors, layout, radii, screenPadding, spacing } from '@/theme';
 
 /** The three labels used on this page. Nothing is shown as official — we have no official feed. */
 const PUBLIC_PLANS = 'Public plans';
@@ -43,7 +43,7 @@ export default function LA28() {
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const { tempUnit } = useSettings();
-  const { setFrom, setTo } = useTrip();
+  const { selectFrom, selectTo } = useTrip();
   const [selectedId, setSelectedId] = useState('valley');
 
   const valley = VENUE_ZONES.find((z) => z.highlighted)!;
@@ -53,8 +53,8 @@ export default function LA28() {
   const enter = (i: number) => FadeInDown.delay(60 + i * 70).duration(450);
 
   const planToValley = () => {
-    setFrom(DEMO_TRIP.from);
-    setTo(DEMO_TRIP.to);
+    selectFrom(DEMO_FROM_PLACE);
+    selectTo(DEMO_TO_PLACE);
     router.push('/route-setup');
   };
 
@@ -63,46 +63,29 @@ export default function LA28() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          paddingTop: insets.top + layout.cardPaddingLg,
           paddingHorizontal: screenPadding,
           paddingBottom: tabSpace,
-          gap: spacing['2xl'],
+          gap: layout.section,
         }}
       >
-        <View>
+        <View style={{ gap: layout.cardPaddingLg }}>
           <ScreenHeader title="LA28" subtitle="The Games are coming to Los Angeles." />
           <Notice title="Independent project" body="Confirm details with official LA28 sources." />
         </View>
 
-        {/* legend */}
-        <Animated.View entering={enter(0)}>
-          <SectionHeader title="How to read this page" />
-          <Card padding="none">
-            <LegendRow
-              tag={<TrustTag source="official" label="Official LA28 information" />}
-              body="None shown. This prototype has no official LA28 data feed."
-            />
-            <LegendRow
-              tag={<TrustTag source="open" label="Based on publicly announced plans" />}
-              body="General venue areas from public announcements. Plans can change."
-            />
-            <LegendRow
-              tag={<TrustTag source="estimated" label={ESTIMATE} />}
-              body="Our own estimates and general guidance — not official."
-              last
-            />
-          </Card>
-        </Animated.View>
-
         {/* map */}
         <Animated.View entering={enter(1)}>
-          <SectionHeader title="Venue zones" caption="Illustrative locations — not venue addresses." />
+          <SectionHeader
+            title="Venue zones"
+            caption="Illustrative locations — not venue addresses."
+          />
           <ZoneMap zones={VENUE_ZONES} selectedId={selectedId} onSelect={setSelectedId} />
         </Animated.View>
 
         {/* valley zone */}
         <Animated.View entering={enter(2)}>
-          <Card padding="lg" style={{ gap: spacing.lg, borderColor: colors.accent.coral.border, borderWidth: 1 }}>
+          <Card padding="lg" style={{ gap: layout.stack }}>
             <View style={{ gap: spacing.sm }}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 <TrustTag source="open" label={PUBLIC_PLANS} />
@@ -111,10 +94,10 @@ export default function LA28() {
                     paddingHorizontal: 8,
                     paddingVertical: 3,
                     borderRadius: radii.xs,
-                    backgroundColor: colors.action.primarySoft,
+                    backgroundColor: colors.background.sunken,
                   }}
                 >
-                  <Text variant="overline" tone="accent" style={{ letterSpacing: 0.5 }}>
+                  <Text variant="overline" tone="secondary" style={{ letterSpacing: 0.5 }}>
                     Demo destination
                   </Text>
                 </View>
@@ -140,7 +123,9 @@ export default function LA28() {
             <PrimaryButton
               title="Plan a route here"
               onPress={planToValley}
-              trailingIcon={<ArrowRight size={18} color={colors.action.onPrimary} strokeWidth={2.4} />}
+              trailingIcon={
+                <ArrowRight size={18} color={colors.action.onPrimary} strokeWidth={2.4} />
+              }
             />
           </Card>
         </Animated.View>
@@ -162,8 +147,8 @@ export default function LA28() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: spacing.md,
-                    minHeight: 60,
-                    paddingHorizontal: spacing.lg,
+                    minHeight: 56,
+                    paddingHorizontal: layout.cardPadding,
                     paddingVertical: spacing.md,
                     borderBottomWidth: i === others.length - 1 ? 0 : 1,
                     borderBottomColor: colors.border.hairline,
@@ -198,8 +183,14 @@ export default function LA28() {
           <SectionHeader title="Getting around" />
           <Card padding="lg" style={{ gap: spacing.md }}>
             <TrustTag source="estimated" label="General guidance" />
-            <EstimateRow Icon={CarFront} text="Large events usually mean heavier traffic and limited parking near venues." />
-            <EstimateRow Icon={TrainFront} text="Transit can avoid parking, but transfers and waits add time — compare routes first." />
+            <EstimateRow
+              Icon={CarFront}
+              text="Large events usually mean heavier traffic and limited parking near venues."
+            />
+            <EstimateRow
+              Icon={TrainFront}
+              text="Transit can avoid parking, but transfers and waits add time — compare routes first."
+            />
             <EstimateRow
               Icon={Megaphone}
               text="Any event-specific transit or road plans will come from official sources. Check them closer to the Games."
@@ -209,15 +200,50 @@ export default function LA28() {
 
         {/* accessibility resources */}
         <Animated.View entering={enter(5)}>
-          <SectionHeader title="Accessibility resources" caption="Where to check official, up-to-date information." />
+          <SectionHeader
+            title="Accessibility resources"
+            caption="Where to check official, up-to-date information."
+          />
           <Card padding="lg" style={{ gap: spacing.md }}>
-            <EstimateRow Icon={Landmark} text="LA28 — official venue and accessibility information, as it’s published." />
-            <EstimateRow Icon={TrainFront} text="LA Metro — accessible service and station elevator status." />
-            <EstimateRow Icon={Accessibility} text="Access Services — LA County’s ADA paratransit provider." />
-            <EstimateRow Icon={Building2} text="Venue operators — accessible entrances, seating, and assistance." />
+            <EstimateRow
+              Icon={Landmark}
+              text="LA28 — official venue and accessibility information, as it’s published."
+            />
+            <EstimateRow
+              Icon={TrainFront}
+              text="LA Metro — accessible service and station elevator status."
+            />
+            <EstimateRow
+              Icon={Accessibility}
+              text="Access Services — LA County’s ADA paratransit provider."
+            />
+            <EstimateRow
+              Icon={Building2}
+              text="Venue operators — accessible entrances, seating, and assistance."
+            />
             <Text variant="caption" tone="secondary">
               ACCESS LA28 links you to these sources by name only and doesn’t speak for them.
             </Text>
+          </Card>
+        </Animated.View>
+
+        {/* legend */}
+        <Animated.View entering={enter(0)}>
+          <SectionHeader title="About these labels" />
+          <Card padding="none">
+            <LegendRow
+              tag={<TrustTag source="official" label="Official LA28 information" />}
+              body="None shown. This prototype has no official LA28 data feed."
+            />
+            <LegendRow
+              tag={<TrustTag source="open" label="Based on publicly announced plans" />}
+              body="General venue areas from public announcements. Plans can change."
+            />
+            <LegendRow
+              tag={<TrustTag source="estimated" label={ESTIMATE} />}
+              body="Our own estimates and general guidance — not official."
+              last
+            />
           </Card>
         </Animated.View>
 
@@ -231,8 +257,8 @@ function LegendRow({ tag, body, last }: { tag: React.ReactNode; body: string; la
   return (
     <View
       style={{
-        gap: 6,
-        padding: spacing.lg,
+        gap: spacing.sm,
+        padding: layout.cardPadding,
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: colors.border.hairline,
       }}

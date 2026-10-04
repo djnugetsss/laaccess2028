@@ -3,7 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { boundsOf, makeProjector } from '@/lib/geo';
-import { mapbox, mapUnavailableReason, type MapboxModule, type MapUnavailableReason } from '@/lib/mapbox';
+import {
+  mapbox,
+  mapUnavailableReason,
+  type MapboxModule,
+  type MapUnavailableReason,
+} from '@/lib/mapbox';
 import type { LngLat, MappedRoute } from '@/lib/types';
 import { colors, radii, shadows } from '@/theme';
 
@@ -26,8 +31,14 @@ type Props = {
 /** Map with every route faint and the selected one drawn in coral. Falls back gracefully. */
 export function RouteMap(props: Props) {
   const [failed, setFailed] = useState(false);
-  if (mapbox && !failed) return <MapboxRouteMap mb={mapbox} onError={() => setFailed(true)} {...props} />;
-  return <SchematicRouteMap {...props} reason={failed ? 'loadError' : (mapUnavailableReason ?? 'noToken')} />;
+  if (mapbox && !failed)
+    return <MapboxRouteMap mb={mapbox} onError={() => setFailed(true)} {...props} />;
+  return (
+    <SchematicRouteMap
+      {...props}
+      reason={failed ? 'loadError' : (mapUnavailableReason ?? 'noToken')}
+    />
+  );
 }
 
 // ───────────────────────────── Mapbox ─────────────────────────────
@@ -44,38 +55,50 @@ function MapboxRouteMap({
 }: Props & { mb: MapboxModule; onError: () => void }) {
   const { MapView, Camera, ShapeSource, LineLayer, MarkerView, StyleURL } = mb;
   const [loaded, setLoaded] = useState(false);
-  const selected = routes.find((r) => r.id === selectedId) ?? routes[0];
+  const selected: MappedRoute | undefined = routes.find((r) => r.id === selectedId) ?? routes[0];
 
+  // Endpoints are always part of the frame, so the map is never empty while routes load or fail.
   const bounds = useMemo(
     () => ({
-      ...boundsOf(routes.flatMap((r) => r.geometry)),
+      ...boundsOf([
+        origin.coordinate,
+        destination.coordinate,
+        ...routes.flatMap((r) => r.geometry),
+      ]),
       paddingTop: insets.top + 24,
       paddingBottom: insets.bottom + 36,
       paddingLeft: 44,
       paddingRight: 44,
     }),
-    [routes, insets.top, insets.bottom],
+    [routes, origin.coordinate, destination.coordinate, insets.top, insets.bottom],
   );
 
   const others = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
       features: routes
-        .filter((r) => r.id !== selected.id)
+        .filter((r) => r.id !== selected?.id)
         .map((r) => ({
           type: 'Feature',
           properties: { id: r.id },
           geometry: { type: 'LineString', coordinates: r.geometry },
         })),
     }),
-    [routes, selected.id],
+    [routes, selected?.id],
   );
 
-  const active = useMemo<GeoJSON.Feature>(
+  const active = useMemo<GeoJSON.FeatureCollection>(
     () => ({
-      type: 'Feature',
-      properties: { id: selected.id },
-      geometry: { type: 'LineString', coordinates: selected.geometry },
+      type: 'FeatureCollection',
+      features: selected
+        ? [
+            {
+              type: 'Feature',
+              properties: { id: selected.id },
+              geometry: { type: 'LineString', coordinates: selected.geometry },
+            },
+          ]
+        : [],
     }),
     [selected],
   );
@@ -93,9 +116,9 @@ function MapboxRouteMap({
         attributionPosition={{ bottom: insets.bottom + 6, right: 14 }}
         onDidFinishLoadingMap={() => setLoaded(true)}
         onMapLoadingError={onError}
-        accessibilityLabel={`Map showing ${selected.label} route from ${origin.label} to ${destination.label}`}
+        accessibilityLabel={`Map showing ${selected ? `${selected.label} route` : 'trip'} from ${origin.label} to ${destination.label}`}
       >
-        <Camera bounds={bounds} animationDuration={0} />
+        <Camera bounds={bounds} animationDuration={loaded ? 600 : 0} />
 
         {/* Two sources mounted once in a fixed order so the selected line always draws on top. */}
         <ShapeSource
@@ -127,7 +150,12 @@ function MapboxRouteMap({
           <LineLayer
             id="route-selected-line"
             aboveLayerID="route-selected-casing"
-            style={{ lineColor: colors.palette.coral[500], lineWidth: 5.5, lineCap: 'round', lineJoin: 'round' }}
+            style={{
+              lineColor: colors.palette.coral[500],
+              lineWidth: 5.5,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }}
           />
         </ShapeSource>
 
@@ -147,7 +175,10 @@ function MapboxRouteMap({
 export function EndpointMarker({ kind, label }: { kind: 'origin' | 'destination'; label: string }) {
   const isDest = kind === 'destination';
   return (
-    <View style={{ alignItems: 'center' }} accessibilityLabel={`${isDest ? 'Destination' : 'Start'}: ${label}`}>
+    <View
+      style={{ alignItems: 'center' }}
+      accessibilityLabel={`${isDest ? 'Destination' : 'Start'}: ${label}`}
+    >
       <View
         style={[
           {
@@ -182,7 +213,12 @@ export function EndpointMarker({ kind, label }: { kind: 'origin' | 'destination'
           shadows.sm,
         ]}
       >
-        <Text variant="caption" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontSize: 11, lineHeight: 14 }}>
+        <Text
+          variant="caption"
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
+          style={{ fontSize: 11, lineHeight: 14 }}
+        >
           {label}
         </Text>
       </View>
@@ -202,18 +238,21 @@ function SchematicRouteMap({
   insets = { top: 0, bottom: 0 },
 }: Props & { reason: MapUnavailableReason }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const selected = routes.find((r) => r.id === selectedId) ?? routes[0];
+  const selected: MappedRoute | undefined = routes.find((r) => r.id === selectedId) ?? routes[0];
 
   const project = useMemo(
     () =>
-      makeProjector(boundsOf(routes.flatMap((r) => r.geometry)), {
-        width: size.w,
-        height: size.h,
-        padX: 44,
-        padTop: insets.top + 40,
-        padBottom: insets.bottom + 90,
-      }),
-    [routes, size, insets.top, insets.bottom],
+      makeProjector(
+        boundsOf([origin.coordinate, destination.coordinate, ...routes.flatMap((r) => r.geometry)]),
+        {
+          width: size.w,
+          height: size.h,
+          padX: 44,
+          padTop: insets.top + 40,
+          padBottom: insets.bottom + 90,
+        },
+      ),
+    [routes, origin.coordinate, destination.coordinate, size, insets.top, insets.bottom],
   );
 
   const points = (r: MappedRoute) => r.geometry.map((p) => project(p).join(',')).join(' ');
@@ -225,13 +264,13 @@ function SchematicRouteMap({
       <View
         style={StyleSheet.absoluteFill}
         accessible
-        accessibilityLabel={`Schematic of ${selected.label} route from ${origin.label} to ${destination.label}`}
+        accessibilityLabel={`Schematic of ${selected ? `${selected.label} route` : 'trip'} from ${origin.label} to ${destination.label}`}
         onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
       >
         {size.w > 0 && (
           <Svg width={size.w} height={size.h}>
             {routes
-              .filter((r) => r.id !== selected.id)
+              .filter((r) => r.id !== selected?.id)
               .map((r) => (
                 <Polyline
                   key={r.id}
@@ -243,22 +282,26 @@ function SchematicRouteMap({
                   fill="none"
                 />
               ))}
-            <Polyline
-              points={points(selected)}
-              stroke="#FFFFFF"
-              strokeWidth={10}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <Polyline
-              points={points(selected)}
-              stroke={colors.palette.coral[500]}
-              strokeWidth={5.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
+            {selected && (
+              <>
+                <Polyline
+                  points={points(selected)}
+                  stroke="#FFFFFF"
+                  strokeWidth={10}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <Polyline
+                  points={points(selected)}
+                  stroke={colors.palette.coral[500]}
+                  strokeWidth={5.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </>
+            )}
             <Circle cx={ox} cy={oy} r={9} fill="#FFFFFF" />
             <Circle cx={ox} cy={oy} r={5.5} fill={colors.palette.navy[900]} />
             <Circle cx={dx} cy={dy} r={12} fill="#FFFFFF" />

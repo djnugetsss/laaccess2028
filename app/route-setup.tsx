@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowRight, ArrowUpDown, MapPin } from 'lucide-react-native';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,16 +9,22 @@ import {
   BackButton,
   Card,
   GradientBackground,
+  PlaceField,
   PreferenceCard,
   PrimaryButton,
   preferenceTone,
   ScreenHeader,
-  SearchField,
   Text,
+  TextLink,
 } from '@/components';
 import { PREFERENCE_BY_KEY, ROUTE_PREFERENCE_KEYS } from '@/lib/preferences';
-import { useTrip } from '@/lib/trip';
-import { colors, screenPadding, shadows, spacing } from '@/theme';
+import { DEMO_FROM_PLACE, DEMO_TO_PLACE, useTrip } from '@/lib/trip';
+import { colors, layout, screenPadding, shadows, spacing } from '@/theme';
+
+const DEMO_PLACES = [DEMO_FROM_PLACE, DEMO_TO_PLACE];
+
+/** Field height (SearchField) + card padding, so the swap button sits between the two fields. */
+const SWAP_TOP = spacing.sm + 58 + spacing.xs - 18;
 
 /** Pair items into rows of two for the grid. */
 const rows = <T,>(items: readonly T[]) =>
@@ -25,8 +32,24 @@ const rows = <T,>(items: readonly T[]) =>
 
 export default function RouteSetup() {
   const insets = useSafeAreaInsets();
-  const { from, to, setFrom, setTo, swap, preferences, togglePreference, hasPreference } = useTrip();
-  const canSearch = from.trim().length > 0 && to.trim().length > 0;
+  const {
+    from,
+    to,
+    fromPlace,
+    toPlace,
+    setFrom,
+    setTo,
+    selectFrom,
+    selectTo,
+    swap,
+    preferences,
+    togglePreference,
+    hasPreference,
+  } = useTrip();
+  const [editing, setEditing] = useState<'from' | 'to' | null>(null);
+  const canSearch = !!fromPlace && !!toPlace;
+  // The swap button floats between the fields, so hide it whenever a dropdown or hint shifts them.
+  const showSwap = editing === null && (!!fromPlace || from.trim().length === 0);
 
   return (
     <GradientBackground>
@@ -42,16 +65,24 @@ export default function RouteSetup() {
           }}
         >
           <BackButton />
-          <View style={{ height: spacing.lg }} />
-          <ScreenHeader title="Plan a Route" subtitle="Tell us where you’re going and what matters most." />
+          <View style={{ height: layout.stack }} />
+          <ScreenHeader
+            title="Plan a Route"
+            subtitle="Tell us where you’re going and what matters most."
+          />
+          <View style={{ height: layout.section }} />
 
           {/* from / to */}
           <Card padding="sm" style={{ gap: spacing.sm }}>
-            <SearchField
+            <PlaceField
               label="From"
               value={from}
+              place={fromPlace}
               onChangeText={setFrom}
-              placeholder="Starting point"
+              onSelect={selectFrom}
+              featured={DEMO_PLACES}
+              onFocusChange={(f) => setEditing(f ? 'from' : null)}
+              placeholder="Search an address or place"
               icon={
                 <View
                   style={{
@@ -64,59 +95,58 @@ export default function RouteSetup() {
                 />
               }
             />
-            <SearchField
+            <PlaceField
               label="To"
               value={to}
+              place={toPlace}
               onChangeText={setTo}
-              placeholder="Destination"
+              onSelect={selectTo}
+              featured={DEMO_PLACES}
+              onFocusChange={(f) => setEditing(f ? 'to' : null)}
+              placeholder="Search an address or place"
               icon={<MapPin size={20} color={colors.action.primary} strokeWidth={2.4} />}
             />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Swap start and destination"
-              onPress={swap}
-              hitSlop={6}
-              style={({ pressed }) => [
-                {
-                  position: 'absolute',
-                  right: spacing.xl,
-                  top: '50%',
-                  marginTop: -18,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: colors.background.surface,
-                  borderWidth: 1,
-                  borderColor: colors.border.hairline,
-                  transform: [{ scale: pressed ? 0.92 : 1 }],
-                },
-                shadows.sm,
-              ]}
-            >
-              <ArrowUpDown size={16} color={colors.text.primary} strokeWidth={2.2} />
-            </Pressable>
+            {showSwap && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Swap start and destination"
+                onPress={swap}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  {
+                    position: 'absolute',
+                    right: spacing.xl,
+                    top: SWAP_TOP,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.background.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border.hairline,
+                    transform: [{ scale: pressed ? 0.92 : 1 }],
+                  },
+                  shadows.sm,
+                ]}
+              >
+                <ArrowUpDown size={16} color={colors.text.primary} strokeWidth={2.2} />
+              </Pressable>
+            )}
           </Card>
 
           {/* preferences */}
-          <View style={{ marginTop: spacing['3xl'], marginBottom: spacing.lg, gap: 4 }}>
+          <View style={{ marginTop: layout.section, marginBottom: layout.stack, gap: spacing.xs }}>
             <Text variant="heading" accessibilityRole="header">
               What matters to you?
             </Text>
             <Text variant="callout" tone="secondary">
               Pick as many as you like. We’ll rank routes around them.
             </Text>
-            <Pressable
-              accessibilityRole="link"
+            <TextLink
+              title="What each preference does"
               onPress={() => router.push('/accessibility')}
-              hitSlop={8}
-              style={({ pressed }) => ({ alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
-            >
-              <Text variant="caption" tone="accent" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                What each preference does
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View style={{ gap: spacing.md }}>
@@ -155,12 +185,16 @@ export default function RouteSetup() {
               title="Find Routes"
               disabled={!canSearch}
               onPress={() => router.push('/results')}
-              trailingIcon={<ArrowRight size={18} color={colors.action.onPrimary} strokeWidth={2.4} />}
+              trailingIcon={
+                <ArrowRight size={18} color={colors.action.onPrimary} strokeWidth={2.4} />
+              }
             />
             <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-              {preferences.length === 0
-                ? 'No preferences — routes ranked by overall ACCESS SCORE'
-                : `${preferences.length} preference${preferences.length === 1 ? '' : 's'} selected`}
+              {!canSearch
+                ? 'Choose a suggestion for both From and To'
+                : preferences.length === 0
+                  ? 'No preferences — routes ranked by overall ACCESS SCORE'
+                  : `${preferences.length} preference${preferences.length === 1 ? '' : 's'} selected`}
             </Text>
           </LinearGradient>
         </View>

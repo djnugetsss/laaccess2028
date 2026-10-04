@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
-import { Accessibility, ChevronRight, Map, Medal, Users } from 'lucide-react-native';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Map, Medal, Users } from 'lucide-react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GradientBackground, HeroRouteMotif, NavCard, Text, useTabBarSpace } from '@/components';
+import { GradientBackground, HeroRouteMotif, NavCard, Text, TextLink, useTabBarSpace } from '@/components';
 import { APP_NAME, SHORT_DISCLAIMER } from '@/lib/constants';
-import { colors, screenPadding, spacing } from '@/theme';
+import { colors, layout, screenPadding, spacing } from '@/theme';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -19,7 +19,7 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingTop: insets.top + spacing.lg,
+          paddingTop: insets.top + layout.stack,
           paddingBottom: tabSpace,
           paddingHorizontal: screenPadding,
         }}
@@ -34,11 +34,11 @@ export default function Home() {
           </Text>
         </View>
 
-        <Animated.View entering={enter(0)} style={{ marginTop: spacing['2xl'] }}>
+        <Animated.View entering={enter(0)} style={{ marginTop: layout.stack }}>
           <HeroRouteMotif />
         </Animated.View>
 
-        <Animated.View entering={enter(1)} style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
+        <Animated.View entering={enter(1)} style={{ marginTop: layout.section, gap: spacing.sm }}>
           <Text variant="display" accessibilityRole="header" style={{ fontSize: 38, lineHeight: 44 }}>
             Navigate LA{'\n'}your way.
           </Text>
@@ -47,7 +47,7 @@ export default function Home() {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={enter(2)} style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
+        <Animated.View entering={enter(2)} style={{ marginTop: layout.section, gap: layout.stack }}>
           <NavCard
             featured
             title="Plan a Route"
@@ -56,7 +56,7 @@ export default function Home() {
             tone="pink"
             onPress={() => router.push('/route-setup')}
           />
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <View style={{ flexDirection: 'row', gap: layout.stack }}>
             <NavCard
               title="Explore LA28"
               subtitle="Venue zones & getting around"
@@ -73,33 +73,11 @@ export default function Home() {
             />
           </View>
 
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="How ACCESS LA28 ranks routes"
-            onPress={() => router.push('/accessibility')}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.sm,
-              minHeight: 44,
-              paddingHorizontal: spacing.xs,
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Accessibility size={18} color={colors.accent.blue.text} strokeWidth={2.2} />
-            <Text variant="callout" style={{ flex: 1, color: colors.accent.blue.text, fontFamily: 'Inter_500Medium' }}>
-              How ACCESS LA28 ranks routes
-            </Text>
-            <ChevronRight size={16} color={colors.accent.blue.text} />
-          </Pressable>
+          <TextLink title="How ACCESS LA28 ranks routes" onPress={() => router.push('/accessibility')} />
         </Animated.View>
 
-        <View style={{ flex: 1, minHeight: spacing.xl }} />
-        <Text
-          variant="caption"
-          tone="secondary"
-          style={{ textAlign: 'center', fontSize: 12, marginTop: spacing.xl }}
-        >
+        <View style={{ flex: 1, minHeight: layout.stack }} />
+        <Text variant="caption" tone="tertiary" style={{ textAlign: 'center', marginTop: layout.stack }}>
           {SHORT_DISCLAIMER}
         </Text>
       </ScrollView>

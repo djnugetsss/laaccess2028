@@ -19,15 +19,16 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { RouteFlag, RouteOption } from '@/lib/types';
+import type { RouteFlag, RouteOption, RouteSource } from '@/lib/types';
 import { colors, layout, layoutSpring, radii, shadows, spacing } from '@/theme';
 
 import { AccessScoreRing } from './AccessScoreRing';
 import { DataConfidenceBadge } from './DataConfidenceBadge';
 import { Text } from './Text';
+import { TrustTag } from './TrustTag';
 
 type Props = {
-  route: RouteOption & { flags?: RouteFlag[] };
+  route: RouteOption & { flags?: RouteFlag[]; source?: RouteSource };
   onPress?: () => void;
   selected?: boolean;
   /** Marks the top-ranked route with a "Recommended" tag. */
@@ -43,6 +44,21 @@ type Props = {
 const FLAGS: Record<RouteFlag, { Icon: LucideIcon; label: string }> = {
   eventTraffic: { Icon: Car, label: 'Event traffic risk' },
   limitedParking: { Icon: CircleParking, label: 'Limited parking' },
+};
+
+/** Hero tag for non-real data. Real Mapbox routes need no tag in the collapsed card. */
+const SOURCE_TAG: Partial<Record<RouteSource, string>> = {
+  demo: 'Demo transit data',
+  fallback: 'Estimated / demo route',
+};
+
+/** One plain sentence in the expanded detail saying exactly what's real and what isn't. */
+const SOURCE_NOTE: Record<RouteSource, string> = {
+  mapbox:
+    'Route, distance, and time from Mapbox Directions. Accessibility, heat, and reliability are estimates.',
+  demo: 'Demo transit data: stops, times, and accessibility are illustrative — not real schedules or routing.',
+  fallback:
+    'Couldn’t load real directions, so this is the prototype’s demo route. Times are not real.',
 };
 
 const RING_SIZE = 72;
@@ -98,7 +114,9 @@ export function RouteCard({
   useEffect(() => {
     chevron.value = withTiming(open ? 1 : 0, { duration: 240, easing: Easing.out(Easing.cubic) });
   }, [open, chevron]);
-  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${chevron.value * 180}deg` }] }));
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevron.value * 180}deg` }],
+  }));
 
   const handlePress = () => {
     if (expanded === undefined) setOwnOpen((v) => !v);
@@ -108,7 +126,10 @@ export function RouteCard({
   return (
     // Two layers: the outer one carries the shadow, the inner one clips the content while the
     // height animates. Both share the reorder spring so expand and reorder feel like one motion.
-    <Animated.View layout={layoutSpring} style={[{ borderRadius: radii.xl, backgroundColor: colors.background.surface }, shadows.md]}>
+    <Animated.View
+      layout={layoutSpring}
+      style={[{ borderRadius: radii.xl, backgroundColor: colors.background.surface }, shadows.md]}
+    >
       <Animated.View
         layout={layoutSpring}
         style={{
@@ -122,8 +143,10 @@ export function RouteCard({
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ selected: !!selected, expanded: open }}
-          accessibilityLabel={`${recommended ? 'Recommended. ' : ''}${route.label}. ${route.mode}. Access score ${route.totalAccessScore} out of 100.`}
-          accessibilityHint={open ? 'Hides route details' : 'Shows route details and selects this route on the map'}
+          accessibilityLabel={`${recommended ? 'Recommended. ' : ''}${route.source && SOURCE_TAG[route.source] ? `${SOURCE_TAG[route.source]}. ` : ''}${route.label}. ${route.mode}. Access score ${route.totalAccessScore} out of 100.`}
+          accessibilityHint={
+            open ? 'Hides route details' : 'Shows route details and selects this route on the map'
+          }
           onPress={handlePress}
           style={({ pressed }) => ({
             padding: layout.cardPadding - SELECTED_BORDER,
@@ -134,7 +157,21 @@ export function RouteCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: layout.cardPadding }}>
             <AccessScoreRing score={route.totalAccessScore} size={RING_SIZE} />
             <View style={{ flex: 1, gap: spacing.xxs }}>
-              {recommended && <RecommendedTag />}
+              {(recommended || (route.source && SOURCE_TAG[route.source])) && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: spacing.xs,
+                    marginBottom: spacing.xxs,
+                  }}
+                >
+                  {recommended && <RecommendedTag />}
+                  {route.source && SOURCE_TAG[route.source] && (
+                    <TrustTag source="estimated" label={SOURCE_TAG[route.source]} />
+                  )}
+                </View>
+              )}
               <Text variant="subheading" numberOfLines={1}>
                 {route.label}
               </Text>
@@ -149,7 +186,10 @@ export function RouteCard({
 
           {/* ─── detail ─── */}
           {open && (
-            <Animated.View entering={FadeIn.duration(220).delay(60)} exiting={FadeOut.duration(120)}>
+            <Animated.View
+              entering={FadeIn.duration(220).delay(60)}
+              exiting={FadeOut.duration(120)}
+            >
               <Detail
                 route={route}
                 highlight={highlight}
@@ -174,7 +214,6 @@ function RecommendedTag() {
         gap: spacing.xs,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xxs,
-        marginBottom: spacing.xxs,
         borderRadius: radii.full,
         backgroundColor: colors.background.sunken,
       }}
@@ -209,12 +248,20 @@ function Detail({
       <View style={{ flexDirection: 'row' }}>
         <Stat value={`${route.durationMinutes}`} unit="min" label="Duration" />
         <Stat value={`${route.walkingMiles}`} unit="mi" label="Walking" />
-        <Stat value={`${route.transfers}`} label={route.transfers === 1 ? 'Transfer' : 'Transfers'} />
+        <Stat
+          value={`${route.transfers}`}
+          label={route.transfers === 1 ? 'Transfer' : 'Transfers'}
+        />
       </View>
 
       {/* accessibility + exposure facts */}
       <View style={{ gap: spacing.md }}>
-        <FactRow Icon={Accessibility} text={f.access} secondary={f.stairs} unknown={route.accessible === null} />
+        <FactRow
+          Icon={Accessibility}
+          text={f.access}
+          secondary={f.stairs}
+          unknown={route.accessible === null}
+        />
         <FactRow Icon={Sun} text={f.exposure} unknown={route.outdoorExposure === null} />
         {route.flags?.map((flag) => (
           <FactRow key={flag} Icon={FLAGS[flag].Icon} text={FLAGS[flag].label} />
@@ -227,9 +274,31 @@ function Detail({
         </Text>
       ) : null}
 
+      {route.source && (
+        <View style={{ gap: spacing.xs }}>
+          <TrustTag
+            source={route.source === 'mapbox' ? 'open' : 'estimated'}
+            label={route.source === 'mapbox' ? 'Mapbox route data' : SOURCE_TAG[route.source]}
+          />
+          <Text variant="caption" tone="secondary">
+            {SOURCE_NOTE[route.source]}
+          </Text>
+        </View>
+      )}
+
       {(showConfidence || onViewDetails) && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          {showConfidence ? <DataConfidenceBadge level={route.dataConfidence} /> : <View />}
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          {showConfidence ? (
+            route.source && route.source !== 'mapbox' ? (
+              <DataConfidenceBadge level="low" label="Demo data" />
+            ) : (
+              <DataConfidenceBadge level={route.dataConfidence} />
+            )
+          ) : (
+            <View />
+          )}
           {onViewDetails && (
             <Pressable
               accessibilityRole="link"
@@ -258,7 +327,11 @@ function Detail({
 
 function Stat({ value, unit, label }: { value: string; unit?: string; label: string }) {
   return (
-    <View accessible accessibilityLabel={`${label}: ${value}${unit ? ` ${unit}` : ''}`} style={{ flex: 1, gap: spacing.xxs }}>
+    <View
+      accessible
+      accessibilityLabel={`${label}: ${value}${unit ? ` ${unit}` : ''}`}
+      style={{ flex: 1, gap: spacing.xxs }}
+    >
       <Text variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>
         {value}
         {unit ? (

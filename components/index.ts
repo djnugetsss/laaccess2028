@@ -11,6 +11,7 @@ export { HeroRouteMotif } from './HeroRouteMotif';
 export { MapLoadingOverlay, MapStatusCard } from './MapStatus';
 export { NavCard } from './NavCard';
 export { Notice } from './Notice';
+export { PlaceField } from './PlaceField';
 export { PreferenceCard, PreferencePill, preferenceTone } from './Preference';
 export { ReasonList } from './ReasonList';
 export { RouteCard } from './RouteCard';

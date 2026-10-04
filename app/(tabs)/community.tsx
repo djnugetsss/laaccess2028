@@ -20,17 +20,21 @@ import { COMMUNITY_AREAS, VALLEY_TONES, type CommunityArea } from '@/lib/communi
 import { MOCK_ROUTES } from '@/lib/mockRoutes';
 import { PREFERENCE_OPTIONS } from '@/lib/preferences';
 import { SCORE_MAX } from '@/lib/scoreEngine';
-import { useTrip } from '@/lib/trip';
-import { colors, radii, screenPadding, shadows, spacing } from '@/theme';
+import { DEMO_FROM_PLACE, useTrip } from '@/lib/trip';
+import { colors, layout, radii, screenPadding, shadows, spacing } from '@/theme';
 
 export default function Community() {
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
-  const { setFrom } = useTrip();
+  const { selectFrom } = useTrip();
   const enter = (i: number) => FadeInDown.delay(60 + i * 70).duration(450);
 
   const planFrom = (area: CommunityArea) => {
-    setFrom(`${area.name}, CA`);
+    selectFrom(
+      area.isDemoOrigin
+        ? DEMO_FROM_PLACE
+        : { name: area.name, address: `${area.name}, California`, coordinate: area.coordinate },
+    );
     router.push('/route-setup');
   };
 
@@ -39,22 +43,34 @@ export default function Community() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          paddingTop: insets.top + layout.cardPaddingLg,
           paddingHorizontal: screenPadding,
           paddingBottom: tabSpace,
-          gap: spacing['2xl'],
+          gap: layout.section,
         }}
       >
-        <ScreenHeader title="Your LA" subtitle="ACCESS LA28 was designed around the people who live here." />
+        <ScreenHeader
+          title="Your LA"
+          subtitle="ACCESS LA28 was designed around the people who live here."
+        />
 
         {/* banner */}
-        <Animated.View entering={enter(0)} style={{ marginTop: -spacing.xl }}>
-          <View style={[{ borderRadius: radii['2xl'], borderCurve: 'continuous', overflow: 'hidden' }, shadows.md]}>
+        <Animated.View entering={enter(0)}>
+          <View
+            style={[
+              { borderRadius: radii['2xl'], borderCurve: 'continuous', overflow: 'hidden' },
+              shadows.md,
+            ]}
+          >
             <LinearGradient
-              colors={[colors.palette.pink[100], colors.palette.green[50], colors.palette.blue[100]]}
+              colors={[
+                colors.palette.pink[100],
+                colors.palette.green[50],
+                colors.palette.blue[100],
+              ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={{ padding: spacing.xl, gap: spacing.sm }}
+              style={{ padding: layout.cardPaddingLg, gap: spacing.sm }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <MapPin size={18} color={colors.text.primary} strokeWidth={2.4} />
@@ -92,7 +108,7 @@ export default function Community() {
             title="Local areas"
             caption="Among the CA-27 communities across the San Fernando Valley, Santa Clarita Valley, and Antelope Valley."
           />
-          <View style={{ gap: spacing.md }}>
+          <View style={{ gap: layout.stack }}>
             {COMMUNITY_AREAS.map((area) => (
               <AreaCard key={area.id} area={area} onPlan={() => planFrom(area)} />
             ))}
@@ -101,7 +117,10 @@ export default function Community() {
 
         {/* local impact */}
         <Animated.View entering={enter(3)}>
-          <SectionHeader title="Built for local trips" caption="What the prototype does for a trip like Granada Hills → Valley Zone." />
+          <SectionHeader
+            title="Built for local trips"
+            caption="What the prototype does for a trip like Granada Hills → Valley Zone."
+          />
           <LocalImpact />
         </Animated.View>
 
@@ -124,7 +143,7 @@ function AreaCard({ area, onPlan }: { area: CommunityArea; onPlan: () => void })
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.md,
-          padding: spacing.lg,
+          padding: layout.cardPadding,
           borderRadius: radii.xl,
           borderCurve: 'continuous',
           backgroundColor: colors.background.surface,
@@ -135,9 +154,13 @@ function AreaCard({ area, onPlan }: { area: CommunityArea; onPlan: () => void })
         shadows.sm,
       ]}
     >
-      <View style={{ width: 6, alignSelf: 'stretch', borderRadius: 3, backgroundColor: tone.border }} />
+      <View
+        style={{ width: 6, alignSelf: 'stretch', borderRadius: 3, backgroundColor: tone.border }}
+      />
       <View style={{ flex: 1, gap: 4 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}
+        >
           <Text variant="subheading">{area.name}</Text>
           {area.isDemoOrigin && (
             <View
@@ -145,10 +168,10 @@ function AreaCard({ area, onPlan }: { area: CommunityArea; onPlan: () => void })
                 paddingHorizontal: 7,
                 paddingVertical: 2,
                 borderRadius: radii.full,
-                backgroundColor: colors.action.primarySoft,
+                backgroundColor: colors.background.sunken,
               }}
             >
-              <Text variant="overline" tone="accent" style={{ letterSpacing: 0.4 }}>
+              <Text variant="overline" tone="secondary" style={{ letterSpacing: 0.4 }}>
                 Demo start
               </Text>
             </View>
@@ -180,13 +203,34 @@ function ValleysGraphic() {
         <Circle cx="110" cy="112" r="62" fill={pink[100]} opacity={0.9} />
         <Circle cx="168" cy="72" r="56" fill={green[100]} opacity={0.85} />
         <Circle cx="222" cy="112" r="62" fill={blue[100]} opacity={0.85} />
-        <SvgText x="92" y="128" fontSize="11" fontFamily="Inter_600SemiBold" fill={pink[600]} textAnchor="middle">
+        <SvgText
+          x="92"
+          y="128"
+          fontSize="11"
+          fontFamily="Inter_600SemiBold"
+          fill={pink[600]}
+          textAnchor="middle"
+        >
           San Fernando
         </SvgText>
-        <SvgText x="168" y="54" fontSize="11" fontFamily="Inter_600SemiBold" fill={green[600]} textAnchor="middle">
+        <SvgText
+          x="168"
+          y="54"
+          fontSize="11"
+          fontFamily="Inter_600SemiBold"
+          fill={green[600]}
+          textAnchor="middle"
+        >
           Santa Clarita
         </SvgText>
-        <SvgText x="240" y="128" fontSize="11" fontFamily="Inter_600SemiBold" fill={blue[600]} textAnchor="middle">
+        <SvgText
+          x="240"
+          y="128"
+          fontSize="11"
+          fontFamily="Inter_600SemiBold"
+          fill={blue[600]}
+          textAnchor="middle"
+        >
           Antelope
         </SvgText>
         <Circle cx="166" cy="102" r="5" fill={navy[900]} />
@@ -208,7 +252,7 @@ function LocalImpact() {
   ];
 
   return (
-    <Card padding="lg" style={{ gap: spacing.xl }}>
+    <Card padding="lg" style={{ gap: layout.cardPaddingLg }}>
       <TrustTag source="estimated" label="Illustrative · prototype demo data" />
 
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -249,7 +293,14 @@ function LocalImpact() {
             <Text variant="caption" tone="secondary" style={{ width: 104 }}>
               {w.label}
             </Text>
-            <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.palette.navy[50] }}>
+            <View
+              style={{
+                flex: 1,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: colors.palette.navy[50],
+              }}
+            >
               <View
                 style={{
                   width: `${(w.miles / maxWalk) * 100}%`,
@@ -259,13 +310,17 @@ function LocalImpact() {
                 }}
               />
             </View>
-            <Text variant="caption" style={{ width: 44, textAlign: 'right', fontVariant: ['tabular-nums'] }}>
+            <Text
+              variant="caption"
+              style={{ width: 44, textAlign: 'right', fontVariant: ['tabular-nums'] }}
+            >
               {w.miles} mi
             </Text>
           </View>
         ))}
         <Text variant="caption" tone="secondary">
-          The lowest-walking demo route walks {Math.round(maxWalk / minWalk)}× less than the most walking-heavy one.
+          The lowest-walking demo route walks {Math.round(maxWalk / minWalk)}× less than the most
+          walking-heavy one.
         </Text>
       </View>
     </Card>

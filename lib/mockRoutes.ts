@@ -49,6 +49,7 @@ export const MOCK_ROUTES: MappedRoute[] = [
     ],
     flags: [],
     estimatedCostUsd: 1.75,
+    source: 'demo',
     geometry: [
       [-118.5016, 34.2658],
       [-118.5016, 34.25],
@@ -87,6 +88,7 @@ export const MOCK_ROUTES: MappedRoute[] = [
     ],
     flags: ['eventTraffic', 'limitedParking'],
     estimatedCostUsd: 30,
+    source: 'demo',
     geometry: [
       [-118.5016, 34.2658],
       [-118.4985, 34.2712],
@@ -128,6 +130,7 @@ export const MOCK_ROUTES: MappedRoute[] = [
     ],
     flags: [],
     estimatedCostUsd: 1.75,
+    source: 'demo',
     geometry: [
       [-118.5016, 34.2658],
       [-118.5185, 34.2658],
@@ -147,3 +150,12 @@ export const MOCK_ROUTES: MappedRoute[] = [
 export function getMockRoute(id: string | undefined): MappedRoute | undefined {
   return MOCK_ROUTES.find((r) => r.id === id);
 }
+
+/** Demo transit routes shown alongside real routes on the demo trip. */
+export const DEMO_TRANSIT_ROUTES: MappedRoute[] = MOCK_ROUTES.filter((r) => r.id !== 'fastest');
+
+/** Mock driving route, shown (labeled) only if real driving directions fail on the demo trip. */
+export const DEMO_DRIVING_FALLBACK: MappedRoute = {
+  ...MOCK_ROUTES.find((r) => r.id === 'fastest')!,
+  source: 'fallback',
+};

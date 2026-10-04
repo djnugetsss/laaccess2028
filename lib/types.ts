@@ -54,6 +54,23 @@ export type LngLat = [number, number];
 /** Known risks surfaced on a route. */
 export type RouteFlag = 'eventTraffic' | 'limitedParking';
 
+/**
+ * Where a route's geometry, distance and time came from. Never blur these in the UI.
+ * - mapbox: real Mapbox Directions result (driving / walking).
+ * - demo: prototype demo transit data — not real schedules or routing.
+ * - fallback: demo route shown because the real request failed.
+ */
+export type RouteSource = 'mapbox' | 'demo' | 'fallback';
+
+/** A geocoded (or demo) place: display name + coordinate. */
+export type Place = {
+  /** Short name for markers, e.g. "Van Nuys". */
+  name: string;
+  /** Full display text for fields, e.g. "Van Nuys, California". */
+  address: string;
+  coordinate: LngLat;
+};
+
 /** A RouteOption plus the extra data the map and ranking need. */
 export type MappedRoute = RouteOption & {
   /** Illustrative line geometry for drawing. Not turn-by-turn accurate. */
@@ -61,4 +78,5 @@ export type MappedRoute = RouteOption & {
   flags: RouteFlag[];
   /** Typical one-way out-of-pocket cost; null = unknown. */
   estimatedCostUsd: number | null;
+  source: RouteSource;
 };

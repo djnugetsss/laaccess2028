@@ -1,7 +1,7 @@
 import { ArrowRight, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
-import { colors, radii, shadows, spacing, type AccentTone } from '@/theme';
+import { colors, layout, radii, shadows, spacing, type AccentTone } from '@/theme';
 
 import { Text } from './Text';
 
@@ -28,8 +28,8 @@ export function NavCard({ title, subtitle, Icon, tone = 'blue', onPress, feature
       style={({ pressed }) => [
         {
           flex: featured ? undefined : 1,
-          padding: featured ? spacing.xl : spacing.lg,
-          gap: featured ? spacing.lg : spacing.md,
+          padding: featured ? layout.cardPaddingLg : layout.cardPadding,
+          gap: layout.cardPadding,
           borderRadius: radii.xl,
           borderCurve: 'continuous',
           backgroundColor: colors.background.surface,
@@ -37,7 +37,7 @@ export function NavCard({ title, subtitle, Icon, tone = 'blue', onPress, feature
           borderColor: colors.border.hairline,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
-        featured ? shadows.lg : shadows.md,
+        shadows.md,
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -71,7 +71,7 @@ export function NavCard({ title, subtitle, Icon, tone = 'blue', onPress, feature
           <ChevronRight size={18} color={colors.text.tertiary} />
         )}
       </View>
-      <View style={{ gap: 3 }}>
+      <View style={{ gap: spacing.xxs }}>
         <Text variant={featured ? 'heading' : 'subheading'}>{title}</Text>
         <Text variant={featured ? 'callout' : 'caption'} tone="secondary">
           {subtitle}

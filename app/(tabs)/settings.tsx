@@ -20,7 +20,7 @@ import { APP_NAME, DISCLAIMER } from '@/lib/constants';
 import { useSettings, type TempUnit } from '@/lib/settings';
 import { useTrip } from '@/lib/trip';
 import type { TrustLevel } from '@/lib/types';
-import { colors, screenPadding, spacing } from '@/theme';
+import { colors, layout, screenPadding, spacing } from '@/theme';
 
 /** Sources a full version would use. None are connected in this prototype. */
 const DATA_SOURCES: { name: string; provides: string; trust: TrustLevel }[] = [
@@ -50,15 +50,15 @@ export default function Settings() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          paddingTop: insets.top + layout.cardPaddingLg,
           paddingHorizontal: screenPadding,
           paddingBottom: tabSpace,
-          gap: spacing['2xl'],
+          gap: layout.section,
         }}
       >
         <ScreenHeader title="Settings" subtitle="Preferences, data sources, and privacy." />
 
-        <Animated.View entering={enter(0)} style={{ marginTop: -spacing.xl }}>
+        <Animated.View entering={enter(0)}>
           <SectionHeader title="Preferences" />
           <Card padding="none">
             <SettingsRow
@@ -111,9 +111,9 @@ export default function Settings() {
                 accessible
                 accessibilityLabel={`${s.name}: ${s.provides}. ${s.trust === 'official' ? 'Official source' : 'Open data'}. Planned, not connected.`}
                 style={{
-                  gap: 4,
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.md + 2,
+                  gap: spacing.xs,
+                  paddingHorizontal: layout.cardPadding,
+                  paddingVertical: spacing.md,
                   borderBottomWidth: i === DATA_SOURCES.length - 1 ? 0 : 1,
                   borderBottomColor: colors.border.hairline,
                 }}
@@ -134,7 +134,7 @@ export default function Settings() {
 
         <Animated.View entering={enter(3)}>
           <SectionHeader title="Privacy" />
-          <Card padding="lg" style={{ gap: spacing.md }}>
+          <Card padding="lg" style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Lock size={18} color={colors.accent.green.text} strokeWidth={2.2} />
               <Text variant="subheading">Your data</Text>
@@ -153,7 +153,7 @@ export default function Settings() {
         <Animated.View entering={enter(4)}>
           <SectionHeader title="About" />
           <Card padding="none">
-            <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+            <View style={{ padding: layout.cardPadding, gap: spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Info size={18} color={colors.accent.blue.text} strokeWidth={2.2} />
                 <Text variant="subheading">{APP_NAME}</Text>

@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { RouteSetProvider } from '@/lib/routes';
 import { SettingsProvider } from '@/lib/settings';
 import { TripProvider } from '@/lib/trip';
 import { colors } from '@/theme';
@@ -37,21 +38,23 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SettingsProvider>
         <TripProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background.surface },
-              gestureEnabled: true,
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="route-setup" />
-            <Stack.Screen name="results" />
-            <Stack.Screen name="route-details" />
-            <Stack.Screen name="accessibility" />
-            <Stack.Screen name="design-system" />
-          </Stack>
+          <RouteSetProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background.surface },
+                gestureEnabled: true,
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="route-setup" />
+              <Stack.Screen name="results" />
+              <Stack.Screen name="route-details" />
+              <Stack.Screen name="accessibility" />
+              <Stack.Screen name="design-system" />
+            </Stack>
+          </RouteSetProvider>
         </TripProvider>
       </SettingsProvider>
     </SafeAreaProvider>
