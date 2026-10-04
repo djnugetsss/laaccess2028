@@ -31,26 +31,30 @@ const TOPICS: {
   {
     pref: 'accessibility',
     title: 'Wheelchairs & mobility devices',
-    does: 'Gives much more weight to routes with step-free access — ramps, elevators, and level or ramped boarding — where that information exists.',
-    unknown: 'Routes with unknown accessibility rank below known step-free routes. We never show “Accessible” when we don’t know.',
+    does: 'Gives much more weight to routes with step-free access, such as ramps, elevators, and level or ramped boarding, where that information exists.',
+    unknown:
+      'Routes with unknown accessibility rank below known step-free routes. We never show “Accessible” when we don’t know.',
   },
   {
     pref: 'avoidStairs',
     title: 'Stairs',
     does: 'Routes with no known stairs rank highest. Routes with known stairs rank lower the more stairs they have.',
-    unknown: 'When stair data is missing, the route is treated cautiously — ranked below routes with no known stairs.',
+    unknown:
+      'When stair data is missing, the route is treated cautiously and ranked below routes with no known stairs.',
   },
   {
     pref: 'lessWalking',
     title: 'Walking distance',
     does: 'Favors routes with less total walking, including walks to stops and from drop-off to the venue entrance.',
-    unknown: 'Walking distance is estimated from the route shape and may differ from the real path.',
+    unknown:
+      'Walking distance is estimated from the route shape and may differ from the real path.',
   },
   {
     pref: 'transit',
     title: 'Accessible transit',
-    does: 'Favors routes with stronger transit connections — fewer, simpler transfers and services designed for accessible boarding.',
-    unknown: 'Elevator outages and service changes happen. Check the transit agency for current status.',
+    does: 'Favors routes with stronger transit connections, meaning fewer, simpler transfers and services designed for accessible boarding.',
+    unknown:
+      'Elevator outages and service changes happen. Check the transit agency for current status.',
   },
   {
     pref: 'lessHeat',
@@ -100,9 +104,21 @@ export default function AccessibilityScreen() {
         </View>
 
         <Animated.View entering={enter(0)}>
-          <SectionHeader title="Your preferences" caption="Used when ranking routes. Change them anytime." />
+          <SectionHeader
+            title="Your preferences"
+            caption="Used when ranking routes. Change them anytime."
+          />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {(['accessibility', 'avoidStairs', 'lessWalking', 'transit', 'lessHeat', 'preferShade'] as const).map((key) => (
+            {(
+              [
+                'accessibility',
+                'avoidStairs',
+                'lessWalking',
+                'transit',
+                'lessHeat',
+                'preferShade',
+              ] as const
+            ).map((key) => (
               <PreferencePill
                 key={key}
                 option={PREFERENCE_BY_KEY[key]}
@@ -150,8 +166,8 @@ export default function AccessibilityScreen() {
             ))}
           </Card>
           <Text variant="caption" tone="secondary" style={{ marginTop: layout.stack }}>
-            Your preferences change the order routes are recommended in — not a route’s score. Every score
-            is shown with its data confidence and sources.
+            Your preferences change the order routes are recommended in, not a route’s score. Every
+            score is shown with its data confidence and sources.
           </Text>
         </Animated.View>
 
@@ -164,8 +180,8 @@ export default function AccessibilityScreen() {
               </Text>
             </View>
             <Text variant="callout" style={{ color: colors.palette.navy[700] }}>
-              Works with VoiceOver and larger text sizes. Colors are always paired with text or icons, so
-              scores and data confidence never rely on color alone.
+              Works with VoiceOver and larger text sizes. Colors are always paired with text or
+              icons, so scores and data confidence never rely on color alone.
             </Text>
           </Card>
         </Animated.View>
@@ -214,7 +230,10 @@ function Topic({ pref: prefKey, title, does, unknown }: (typeof TOPICS)[number])
 function InfoLine({ label, text }: { label: string; text: string }) {
   return (
     <Text variant="caption" tone="secondary">
-      <Text variant="caption" style={{ fontFamily: 'Inter_600SemiBold', color: colors.text.secondary }}>
+      <Text
+        variant="caption"
+        style={{ fontFamily: 'Inter_600SemiBold', color: colors.text.secondary }}
+      >
         {label}:{' '}
       </Text>
       {text}

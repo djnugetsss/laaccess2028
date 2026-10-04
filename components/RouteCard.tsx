@@ -56,12 +56,12 @@ const SOURCE_TAG: Partial<Record<RouteSource, string>> = {
 const SOURCE_NOTE: Record<RouteSource, string> = {
   mapbox:
     'Route, distance, and time from Mapbox Directions. Accessibility, heat, and reliability are estimates.',
-  demo: 'Demo transit data: stops, times, and accessibility are illustrative — not real schedules or routing.',
+  demo: 'Demo transit data: stops, times, and accessibility are illustrative, not real schedules or routing.',
   fallback:
     'Couldn’t load real directions, so this is the prototype’s demo route. Times are not real.',
 };
 
-const RING_SIZE = 72;
+const RING_SIZE = 64;
 const SELECTED_BORDER = 1.5;
 
 function plural(n: number, word: string) {

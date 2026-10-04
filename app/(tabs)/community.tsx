@@ -85,7 +85,7 @@ export default function Community() {
                 Communities across the San Fernando, Santa Clarita, and Antelope Valleys.
               </Text>
               <Text variant="caption" style={{ color: colors.palette.navy[600] }}>
-                Prototype setting — ACCESS LA28 doesn’t use your location.
+                Prototype setting. ACCESS LA28 doesn’t use your location.
               </Text>
             </LinearGradient>
           </View>
@@ -97,7 +97,7 @@ export default function Community() {
           <Card padding="md" style={{ gap: spacing.sm }}>
             <ValleysGraphic />
             <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-              Illustrative — not a district map or to scale.
+              Illustrative only. Not a district map or to scale.
             </Text>
           </Card>
         </Animated.View>

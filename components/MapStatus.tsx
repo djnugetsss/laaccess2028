@@ -10,7 +10,7 @@ import { Text } from './Text';
 
 const COPY: Record<MapUnavailableReason, { title: string; body: string }> = {
   noToken: {
-    title: 'Map unavailable — add your Mapbox token',
+    title: 'Map unavailable. Add your Mapbox token',
     body: 'Set EXPO_PUBLIC_MAPS_API_KEY in .env.local and rebuild. Showing a schematic view.',
   },
   noNative: {

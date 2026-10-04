@@ -73,7 +73,10 @@ export function PreferencePill({
       </Text>
       <Text
         variant="callout"
-        style={{ color: selected ? accent.text : colors.text.primary, fontFamily: 'Inter_500Medium' }}
+        style={{
+          color: selected ? accent.text : colors.text.primary,
+          fontFamily: 'Inter_500Medium',
+        }}
       >
         {option.label}
       </Text>

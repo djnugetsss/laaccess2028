@@ -44,7 +44,7 @@ const SCORE_FOOTNOTE =
 const TRUST_DESCRIPTION: Record<TrustLevel, string> = {
   official: 'From published agency or venue information',
   open: 'From open or community datasets',
-  estimated: 'Modeled estimate — verify before relying on it',
+  estimated: 'Modeled estimate. Verify before relying on it',
 };
 
 const UNAVAILABLE = 'Information unavailable';
@@ -62,12 +62,12 @@ const ROUTE_SOURCE: Record<
   demo: {
     tag: 'estimated',
     label: 'Demo data',
-    body: 'Demo transit data — not real schedules or routing',
+    body: 'Demo transit data, not real schedules or routing',
   },
   fallback: {
     tag: 'estimated',
     label: 'Demo data',
-    body: 'Real directions failed to load — showing the demo route',
+    body: 'Real directions failed to load, so this is the demo route',
   },
 };
 
@@ -149,7 +149,7 @@ function Details({ route }: { route: MappedRoute }) {
         {/* ─── score ─── */}
         <Animated.View entering={enter(0)}>
           <Card padding="lg" style={{ alignItems: 'center', gap: layout.stack }}>
-            <AccessScoreRing score={route.totalAccessScore} size={184} />
+            <AccessScoreRing score={route.totalAccessScore} size={160} />
             <View
               style={{
                 flexDirection: 'row',
@@ -443,7 +443,7 @@ function Source({
       <Text variant="caption" tone="secondary">
         {description ??
           (tagLabel === 'Demo data'
-            ? 'Illustrative demo value — not sourced data'
+            ? 'Illustrative demo value, not sourced data'
             : TRUST_DESCRIPTION[level])}
       </Text>
     </View>

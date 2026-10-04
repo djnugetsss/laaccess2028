@@ -149,7 +149,7 @@ export default function DesignSystemPreview() {
           <Card variant="outlined">
             <Text variant="bodyStrong">Outlined card</Text>
             <Text variant="callout" tone="secondary">
-              Hairline border, no shadow — for nested or dense content.
+              Hairline border, no shadow, for nested or dense content.
             </Text>
           </Card>
         </Section>
@@ -160,9 +160,9 @@ export default function DesignSystemPreview() {
             <Text variant="title">Title 28</Text>
             <Text variant="heading">Heading 20</Text>
             <Text variant="subheading">Subheading 17</Text>
-            <Text variant="body">Body 16 — readable, airy, calm.</Text>
+            <Text variant="body">Body 16. Readable, airy, calm.</Text>
             <Text variant="caption" tone="secondary">
-              Caption 13 — secondary metadata
+              Caption 13 for secondary metadata
             </Text>
             <Text variant="overline" tone="accent">
               Overline 11

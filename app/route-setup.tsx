@@ -186,14 +186,18 @@ export default function RouteSetup() {
               disabled={!canSearch}
               onPress={() => router.push('/results')}
               trailingIcon={
-                <ArrowRight size={18} color={colors.action.onPrimary} strokeWidth={2.4} />
+                <ArrowRight
+                  size={18}
+                  color={canSearch ? colors.action.onPrimary : colors.text.secondary}
+                  strokeWidth={2.4}
+                />
               }
             />
             <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
               {!canSearch
                 ? 'Choose a suggestion for both From and To'
                 : preferences.length === 0
-                  ? 'No preferences — routes ranked by overall ACCESS SCORE'
+                  ? 'No preferences, so routes are ranked by overall ACCESS SCORE'
                   : `${preferences.length} preference${preferences.length === 1 ? '' : 's'} selected`}
             </Text>
           </LinearGradient>

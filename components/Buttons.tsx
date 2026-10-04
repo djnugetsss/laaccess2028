@@ -31,7 +31,13 @@ function ButtonBase({
 }: BaseProps & { kind: 'primary' | 'secondary' }) {
   const isPrimary = kind === 'primary';
   const isDisabled = disabled || loading;
-  const labelColor = isPrimary ? colors.action.onPrimary : colors.text.primary;
+  // Disabled primary: solid neutral fill + muted label, so it reads as inactive but stays legible.
+  const primaryDisabled = isPrimary && isDisabled && !loading;
+  const labelColor = primaryDisabled
+    ? colors.text.secondary
+    : isPrimary
+      ? colors.action.onPrimary
+      : colors.text.primary;
 
   return (
     <Pressable
@@ -48,12 +54,18 @@ function ButtonBase({
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: isDisabled ? 0.45 : 1,
+          opacity: isDisabled && !isPrimary ? 0.45 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
         isPrimary
           ? [
-              { backgroundColor: pressed ? colors.action.primaryPressed : colors.action.primary },
+              {
+                backgroundColor: primaryDisabled
+                  ? colors.border.hairline
+                  : pressed
+                    ? colors.action.primaryPressed
+                    : colors.action.primary,
+              },
               !isDisabled && shadows.primary,
             ]
           : [
@@ -71,7 +83,11 @@ function ButtonBase({
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           {icon}
-          <Text variant="bodyStrong" maxFontSizeMultiplier={1.4} style={{ color: labelColor, textAlign: 'center' }}>
+          <Text
+            variant="bodyStrong"
+            maxFontSizeMultiplier={1.4}
+            style={{ color: labelColor, textAlign: 'center' }}
+          >
             {title}
           </Text>
           {trailingIcon}

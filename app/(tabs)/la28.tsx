@@ -78,7 +78,7 @@ export default function LA28() {
         <Animated.View entering={enter(1)}>
           <SectionHeader
             title="Venue zones"
-            caption="Illustrative locations — not venue addresses."
+            caption="Illustrative locations, not venue addresses."
           />
           <ZoneMap zones={VENUE_ZONES} selectedId={selectedId} onSelect={setSelectedId} />
         </Animated.View>
@@ -115,7 +115,7 @@ export default function LA28() {
               />
               <EstimateRow
                 Icon={Thermometer}
-                text={`Late-summer afternoons in the Valley are often around ${formatTemp(VALLEY_TYPICAL_SUMMER_HIGH_F, tempUnit)} — heat-aware routing matters here.`}
+                text={`Late-summer afternoons in the Valley are often around ${formatTemp(VALLEY_TYPICAL_SUMMER_HIGH_F, tempUnit)}, so heat-aware routing matters here.`}
               />
             </View>
             <TrustTag source="estimated" label={ESTIMATE} />
@@ -189,7 +189,7 @@ export default function LA28() {
             />
             <EstimateRow
               Icon={TrainFront}
-              text="Transit can avoid parking, but transfers and waits add time — compare routes first."
+              text="Transit can avoid parking, but transfers and waits add time. Compare routes first."
             />
             <EstimateRow
               Icon={Megaphone}
@@ -207,19 +207,19 @@ export default function LA28() {
           <Card padding="lg" style={{ gap: spacing.md }}>
             <EstimateRow
               Icon={Landmark}
-              text="LA28 — official venue and accessibility information, as it’s published."
+              text="LA28 publishes official venue and accessibility information."
             />
             <EstimateRow
               Icon={TrainFront}
-              text="LA Metro — accessible service and station elevator status."
+              text="LA Metro shares accessible service and station elevator status."
             />
             <EstimateRow
               Icon={Accessibility}
-              text="Access Services — LA County’s ADA paratransit provider."
+              text="Access Services is LA County’s ADA paratransit provider."
             />
             <EstimateRow
               Icon={Building2}
-              text="Venue operators — accessible entrances, seating, and assistance."
+              text="Venue operators handle accessible entrances, seating, and assistance."
             />
             <Text variant="caption" tone="secondary">
               ACCESS LA28 links you to these sources by name only and doesn’t speak for them.
@@ -241,7 +241,7 @@ export default function LA28() {
             />
             <LegendRow
               tag={<TrustTag source="estimated" label={ESTIMATE} />}
-              body="Our own estimates and general guidance — not official."
+              body="Our own estimates and general guidance, not official."
               last
             />
           </Card>
